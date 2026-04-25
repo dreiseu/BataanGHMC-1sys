@@ -12,6 +12,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
     Route::inertia('/hr-portal', 'hr-portal');
+    Route::inertia('/hr-portal/video-orientation', 'hr-portal/video-orientation');
+    Route::inertia('/hr-portal/downloadable-forms', 'hr-portal/downloadable-forms');
+    Route::inertia('/hr-portal/policies', 'hr-portal/policies');
+    Route::inertia('/hr-portal/leave-benefits', 'hr-portal/leave-benefits');
+    Route::inertia('/hr-portal/announcements', 'hr-portal/announcements');
+    Route::inertia('/hr-portal/faqs', 'hr-portal/faqs');
+
     Route::inertia('/petro', 'petro');
     Route::inertia('/pgs', 'pgs');
     Route::inertia('/covid-sat', 'covid-sat');

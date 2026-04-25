@@ -25,12 +25,14 @@ class DirectoryController extends Controller
             'department' => ['required'],
             'local_no' => ['required'],
             'section' => ['required'],
+            'sort_order' => ['nullable', 'integer'],
         ]);
 
         DirectoryEntry::create([
             'department' => request('department'),
             'local_no' => request('local_no'),
             'section' => request('section'),
+            'sort_order' => request('sort_order', 0),
         ]);
 
         return back();
@@ -42,12 +44,14 @@ class DirectoryController extends Controller
             'department' => ['required'],
             'local_no' => ['required'],
             'section' => ['required'],
+            'sort_order' => ['nullable', 'integer'],
         ]);
 
         $directoryEntry->update([
             'department' => request('department'),
             'local_no' => request('local_no'),
             'section' => request('section'),
+            'sort_order' => request('sort_order', 0),
         ]);
 
         return back();
