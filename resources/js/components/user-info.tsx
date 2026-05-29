@@ -4,26 +4,26 @@ import type { User } from '@/types';
 
 export function UserInfo({
     user,
-    showEmail = false,
+    showDetails = false,
 }: {
     user: User;
-    showEmail?: boolean;
+    showDetails?: boolean;
 }) {
     const getInitials = useInitials();
 
     return (
         <>
-            <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                <AvatarImage src={user.avatar} alt={user.name} />
+            <Avatar className="h-12 w-12 overflow-hidden rounded-full">
+                <AvatarImage src={user.avatar as string} alt={user.name} />
                 <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
                     {getInitials(user.name)}
                 </AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                {showEmail && (
+                {showDetails && (
                     <span className="truncate text-xs text-muted-foreground">
-                        {user.email}
+                        {String(user.PositionName || user.bioid || '')}
                     </span>
                 )}
             </div>

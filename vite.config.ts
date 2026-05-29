@@ -3,13 +3,28 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
+
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    server: {
+        host: '0.0.0.0',
+        port: 5177,
+        hmr: {
+            host: '192.168.42.62',
+        },
+
+        watch: {
+            usePolling: true,
+            interval: 1000, // Check every 1 second
+            ignored: ['**/public/storage/**', '**/storage/app/public/**'],
+        }
+    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
+
         }),
         inertia(),
         react({

@@ -23,7 +23,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (app()->runningInConsole() === false && !request()->isSecure()) {
+            config(['session.secure' => false]);
+        }
+
         $this->configureDefaults();
+
+        \Illuminate\Support\Facades\Auth::provider('soap', function ($app, array $config) {
+            return new \App\Auth\SoapUserProvider();
+        });
     }
 
     /**

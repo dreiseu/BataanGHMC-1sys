@@ -45,9 +45,9 @@ return [
     |
     */
 
-    'username' => 'email',
+    'username' => 'bioid',
 
-    'email' => 'email',
+    'email' => 'bioid',
 
     /*
     |--------------------------------------------------------------------------
@@ -144,14 +144,14 @@ return [
     */
 
     'features' => [
-        Features::registration(),
-        Features::resetPasswords(),
-        Features::emailVerification(),
-        Features::twoFactorAuthentication([
-            'confirm' => true,
-            'confirmPassword' => true,
-            // 'window' => 0
-        ]),
+        // ...env('AUTH_REGISTRATION_ENABLED', true) ? [Features::registration()] : [],
+        // Features::resetPasswords(),
+        // Features::emailVerification(),
+        // Features::twoFactorAuthentication([
+        //     'confirm' => true,
+        //     'confirmPassword' => true,
+        //     // 'window' => 0
+        // ]),
     ],
 
 ];

@@ -1,0 +1,245 @@
+/* Login Page Styles - Inspired by Reference */
+/*
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+*/
+.login-page {
+    font-family: 'Poppins', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    background: #f8fafc;
+}
+
+/* Animated Background */
+.animated-bg {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: radial-gradient(circle at 50% 50%, #ffffff 0%, #e2e8f0 100%);
+}
+
+.particle {
+    position: absolute !important;
+    width: 3px;
+    height: 3px;
+    background: rgba(91, 15, 190, 0.2);
+    border-radius: 50%;
+    animation: float 20s infinite linear;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translateY(-100vh) translateX(50px) scale(0.5);
+        opacity: 0;
+    }
+}
+
+/* Card Container */
+.login-card {
+    position: relative;
+    z-index: 10;
+    height: 750px;
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    animation: fadeInScale 0.6s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Top Side */
+.login-top {
+    height: 180px;
+    /* Updated to a 3-color gradient to perfectly loop */
+    background: linear-gradient(135deg, #5B0FBE, #00D4FF, #5B0FBE);
+
+    /* Reusing the exact button animation (3 seconds, seamless loop) */
+    background-size: 200% 200%;
+    animation: moveGradient 8s ease infinite;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 20px;
+}
+
+.logo-strip {
+    display: flex;
+    gap: 35px;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    padding-bottom: 25px;
+}
+
+.logo-strip img {
+    height: 85px;
+    width: auto;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.s-curve {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    z-index: 1;
+}
+
+/* Bottom Side */
+.login-bottom {
+    padding: 1.5rem 2rem 3rem;
+    text-align: center;
+}
+
+.system-titles {
+    margin-bottom: 2rem;
+}
+
+.hospital-name {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.system-name {
+    display: block;
+    font-size: 2.65rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #00D4FF;
+    margin-bottom: 0.5rem;
+}
+
+.system-motto {
+    display: block;
+    font-size: 1rem;
+    color: #59bed3;
+    font-weight: 400;
+}
+
+/* Form Styles */
+.login-form .input-group {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+
+.input-icon {
+    position: absolute;
+    left: 2.25rem;
+    top: 1.5rem;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    z-index: 5;
+    width: 1.25rem;
+    height: 1.25rem;
+    pointer-events: none;
+}
+
+.input-error-wrapper {
+    position: absolute;
+    top: -25px;
+    left: 0;
+    width: 100%;
+    height: 25px;
+    overflow: hidden;
+}
+
+.input-error-wrapper .error-message {
+    font-size: 0.8rem;
+    color: #ef4444;
+}
+
+.login-form input {
+    width: 90%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem !important;
+    border: 1px solid #5B0FBE;
+    border-radius: 20px !important;
+    transition: all 0.2s ease;
+    font-size: 0.9375rem;
+}
+
+.login-form input:focus {
+    border-color: #00D4FF;
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.15);
+}
+
+.btn-login {
+    width: 90%;
+    padding: 0.875rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    border: none;
+}
+
+.btn-login:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(43, 110, 38, 0.2);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+.login-note {
+    display: block;
+    margin-top: 1.5rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.login-note a {
+    color: #5B0FBE;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-note a:hover {
+    text-decoration: underline;
+}
+
+.login-footer {
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.login-footer p {
+    margin: 0.25rem 0;
+}

@@ -1,121 +1,125 @@
-import { Form, Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
+import { Lock, User } from 'lucide-react';
+import React from 'react';
 import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
-import { register } from '@/routes';
-import { store } from '@/routes/login';
-import { request } from '@/routes/password';
+import dohLogoUrl from '../../../images/DOH Logo.png';
+import bghmcLogoUrl from '../../../images/BGHMC logo hi-res.png';
+import bagongPilipinasLogoUrl from '../../../images/Bagong_Pilipinas_logo.png';
 
-type Props = {
-    status?: string;
-    canResetPassword: boolean;
-    canRegister: boolean;
-};
+import Ballpit from '@/components/ui/linewaves';
 
-export default function Login({
-    status,
-    canResetPassword,
-    canRegister,
-}: Props) {
+export default function Login() {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        bioid: '',
+        password: '',
+        remember: false,
+    });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post('/login', {
+            onFinish: () => reset('password'),
+        });
+    };
+
     return (
-        <>
+        <div className="login-page">
             <Head title="Log in" />
 
-            <Form
-                {...store.form()}
-                resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
-            >
-                {({ processing, errors }) => (
-                    <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
-                                <InputError message={errors.email} />
+            {/* Animated Background */}
+            <div className="animated-bg" style={{ pointerEvents: 'auto' }}>
+                <Ballpit />
+            </div>
+
+            <div className="login-card">
+                {/* Top Section */}
+                <div className="login-top">
+                    <div className="logo-strip">
+                        <img src={dohLogoUrl} alt="DOH" />
+                        <img src={bghmcLogoUrl} alt="BGHMC" />
+                        <img src={bagongPilipinasLogoUrl} alt="Bagong Pilipinas" />
+                    </div>
+
+                    {/* S-Curve SVG */}
+                    <svg className="s-curve" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <path d="M0,25 C25,0 75,100 100,50 L100,100 L0,100 Z" fill="white" />
+                    </svg>
+                </div>
+
+                {/* Bottom Section */}
+                <div className="login-bottom">
+                    <div className="system-titles">
+                        <span className="hospital-name">Bataan General Hospital and Medical Center</span>
+                        <h1 className="system-name">
+                            1SYS<br />
+                            All-in-One System
+                        </h1>
+                        <p className="system-motto">
+                            Unified Access Portal
+                        </p>
+                    </div>
+
+                    <form onSubmit={submit} className="login-form">
+
+                        {/* Biometric ID */}
+                        <div className="input-group">
+                            {/* Error Message */}
+                            <div className="input-error-wrapper">
+                                <InputError message={errors.bioid} />
                             </div>
 
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Forgot password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
-                                    id="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Password"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Remember me</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Log in
-                            </Button>
+                            <User className="input-icon" />
+                            <input
+                                type="text"
+                                id="bioid"
+                                name="bioid"
+                                value={data.bioid}
+                                onChange={(e) => setData('bioid', e.target.value)}
+                                placeholder="Biometric ID / Username"
+                                required
+                                autoFocus
+                            />
                         </div>
 
-                        {canRegister && (
-                            <div className="text-center text-sm text-muted-foreground">
-                                Don't have an account?{' '}
-                                <TextLink href={register()} tabIndex={5}>
-                                    Sign up
-                                </TextLink>
-                            </div>
-                        )}
-                    </>
-                )}
-            </Form>
+                        {/* Password */}
+                        <div className="input-group">
+                            <Lock className="input-icon" />
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                value={data.password}
+                                onChange={(e) => setData('password', e.target.value)}
+                                placeholder="Password"
+                                required
+                                className="pl-10"
+                            />
+                        </div>
 
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
+                        {/* Login Button */}
+                        <button
+                            type="submit"
+                            className="btn-login emr-animated-btn"
+                            disabled={processing}
+                        >
+                            {processing ? 'Logging in...' : 'Login'}
+                        </button>
+
+                        <div className="login-note">
+                            Please use your <b>Employee's Portal</b> account.<br />
+                            <em>Can't login? Please contact IMISS (loc 1114)</em>
+                        </div>
+
+                        <div className="login-footer">
+                            <p>Copyright &copy; Bataan General Hospital and Medical Center 2026</p>
+                            <p>App Code: EMRP</p>
+                        </div>
+                    </form>
                 </div>
-            )}
-        </>
+            </div>
+        </div>
     );
 }
 
-Login.layout = {
-    title: 'Log in to your account',
-    description: 'Enter your email and password below to log in',
-};
+
+Login.layout = null;

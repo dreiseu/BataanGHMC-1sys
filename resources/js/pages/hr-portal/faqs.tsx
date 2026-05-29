@@ -36,19 +36,19 @@ export default function Faqs() {
                 <Accordion
                     type="single"
                     collapsible
-                    className="rounded-xl border bg-card"
+                    className="rounded-2xl border bg-card shadow-sm overflow-hidden"
                 >
                     {faqs.map((faq, index) => (
                         <AccordionItem
                             key={faq.question}
                             value={`item-${index}`}
-                            className="px-5"
+                            className="px-6 border-b last:border-0 hover:bg-[#5B0FBE]/5 transition-colors"
                         >
-                            <AccordionTrigger className="py-4 text-left font-medium">
+                            <AccordionTrigger className="py-5 text-left font-semibold text-foreground hover:text-[#5B0FBE] hover:no-underline transition-colors">
                                 {faq.question}
                             </AccordionTrigger>
 
-                            <AccordionContent className="pb-4 text-sm text-muted-foreground">
+                            <AccordionContent className="pb-5 text-sm text-muted-foreground leading-relaxed">
                                 {faq.answer}
                             </AccordionContent>
                         </AccordionItem>

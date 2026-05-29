@@ -38,11 +38,14 @@ export default function LeaveBenefits() {
                         return (
                             <div
                                 key={resource.title}
-                                className="rounded-xl border bg-card p-5 shadow-sm"
+                                className="group relative overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#00D4FF]/40 cursor-pointer"
                             >
-                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                    <Icon className="h-5 w-5" />
-                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+                                
+                                <div className="relative z-10">
+                                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                                        <Icon className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
+                                    </div>
 
                                 <h2 className="font-semibold">
                                     {resource.title}
@@ -51,6 +54,7 @@ export default function LeaveBenefits() {
                                 <p className="mt-2 text-sm text-muted-foreground">
                                     {resource.description}
                                 </p>
+                                </div>
                             </div>
                         );
                     })}

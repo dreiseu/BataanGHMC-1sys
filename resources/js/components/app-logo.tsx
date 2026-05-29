@@ -12,7 +12,7 @@ export default function AppLogo() {
                 </span>
 
                 <span className="truncate text-xs text-muted-foreground">
-                    All-in-One System
+                    Unified Access Portal
                 </span>
             </div>
         </>

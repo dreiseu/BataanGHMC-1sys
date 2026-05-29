@@ -1,9 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@import '../js/pages/auth/login.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -62,39 +66,39 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.975 0 0);
+    --foreground: oklch(0.18 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
+    --primary: #5B0FBE;
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.955 0 0);
     --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
+    --muted: oklch(0.955 0 0);
+    --muted-foreground: oklch(0.48 0 0);
+    --accent: oklch(0.955 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
+    --border: oklch(0.9 0 0);
+    --input: oklch(0.9 0 0);
+    --ring: #00D4FF;
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    --sidebar: oklch(0.21 0 0);
+    --sidebar-foreground: oklch(0.96 0 0);
+    --sidebar-primary: #5B0FBE;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.3 0 0);
+    --sidebar-accent-foreground: oklch(0.98 0 0);
+    --sidebar-border: oklch(0.28 0 0);
+    --sidebar-ring: #00D4FF;
 }
 
 .dark {
@@ -104,8 +108,8 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.145 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
+    --primary: #00D4FF;
+    --primary-foreground: #260554;
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -116,7 +120,7 @@
     --destructive-foreground: oklch(0.637 0.237 25.331);
     --border: oklch(0.269 0 0);
     --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
+    --ring: #00D4FF;
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
@@ -124,12 +128,12 @@
     --chart-5: oklch(0.645 0.246 16.439);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: #00D4FF;
+    --sidebar-primary-foreground: #260554;
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    --sidebar-ring: #00D4FF;
 }
 
 @layer base {
@@ -139,5 +143,228 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    ::selection {
+        background-color: #5B0FBE;
+        color: #ffffff;
+    }
+}
+
+@layer components {
+    .emr-global-header {
+        background: #262626;
+        box-shadow:
+            inset 0 -1px 0 rgba(64, 64, 64, 0.9),
+            0 1px 0 rgba(20, 20, 20, 0.35);
+    }
+
+    .main-system-header {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        height: 90px;
+        background: #262626;
+    }
+
+    .main-system-left {
+        width: 560px;
+        position: relative;
+        z-index: 2;
+        overflow: visible;
+    }
+
+    .main-system-panel {
+        position: relative;
+        width: 435px;
+        height: 100%;
+        background: radial-gradient(circle at top, #5B0FBE 0%, #00D4FF 60%, #00D4FF 90%);
+        background-size: 200% auto;
+        background-position: right center;
+        clip-path: polygon(0 0, 100% 0, calc(100% - 90px) 100%, 0% 100%);
+        box-shadow:
+            0 6px 12px rgba(0, 0, 0, 0.25),
+            0 2px 4px rgba(0, 0, 0, 0.15);
+        transition: width 0.3s ease, clip-path 0.3s ease;
+    }
+
+    .main-system-left-content {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        gap: 12px;
+        padding-left: 15px;
+    }
+
+    .main-system-logo {
+        width: 60px;
+        height: auto;
+    }
+
+    .main-system-title {
+        color: #ffffff;
+        font-size: 32px;
+        line-height: 1.06;
+        letter-spacing: 0;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .info-system {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main-system-title-line {
+        font-family: 'Poppins', 'Inter', 'Instrument Sans';
+        font-weight: 630;
+        text-shadow: 0 0 0.01px rgba(255, 255, 255, 0.35);
+    }
+
+    .main-system-stripes {
+        position: absolute;
+        top: 0;
+        left: 386px;
+        width: 108px;
+        height: 100%;
+        z-index: 3;
+        pointer-events: none;
+    }
+
+    .main-system-stripes1,
+    .main-system-stripes2 {
+        position: absolute;
+        inset: 0 auto 0 0;
+        display: block;
+    }
+
+    .main-system-stripes1 span,
+    .main-system-stripes2 span {
+        display: block;
+        height: 100%;
+        transform: skew(-45deg);
+        box-shadow:
+            0 4px 8px rgba(0, 0, 0, 0.2),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    .main-system-stripes1 {
+        left: 25px;
+        z-index: 5;
+    }
+
+    .main-system-stripes1 span {
+        width: 30px;
+        background: #00D4FF;
+    }
+
+    .main-system-stripes2 {
+        left: 75px;
+        z-index: 5;
+    }
+
+    .main-system-stripes2 span {
+        width: 30px;
+        background: #00D4FF;
+    }
+
+    .main-system-right {
+        flex: 1 1 auto;
+        min-width: 0;
+        background: #262626;
+    }
+
+    .emr-subbar {
+        box-shadow:
+            inset 0 -1px 0 rgba(226, 232, 240, 0.95),
+            0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .emr-content-surface {
+        background: #f4f5f7;
+    }
+
+    .emr-sidebar-brand {
+        background:
+            linear-gradient(135deg, #5B0FBE 0%, #5B0FBE 68%, transparent 68%),
+            linear-gradient(135deg, transparent 0 72%, #3a3a3a 72% 78%, transparent 78%),
+            linear-gradient(135deg, transparent 0 78%, #00D4FF 78% 84%, transparent 84%);
+    }
+
+    .emr-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(91, 15, 190, 0.35) transparent;
+    }
+
+    .emr-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    .emr-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .emr-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(91, 15, 190, 0.35);
+        border-radius: 999px;
+    }
+
+    .emr-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(91, 15, 190, 0.6);
+    }
+
+    .emr-animated-btn {
+        background-color: #00D4FF !important;
+        color: white !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .emr-animated-btn:hover:not(:disabled) {
+        background-image: linear-gradient(135deg,
+                #5B0FBE,
+                #00D4FF,
+                #5B0FBE) !important;
+        background-size: 200% 200% !important;
+        animation: moveGradient 3s ease infinite !important;
+    }
+
+    /* ANIMATIONS */
+    @keyframes moveGradient {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    @keyframes invalidShake {
+
+        10%,
+        90% {
+            transform: translateX(-1px);
+        }
+
+        20%,
+        80% {
+            transform: translateX(2px);
+        }
+
+        30%,
+        50%,
+        70% {
+            transform: translateX(-4px);
+        }
+
+        40%,
+        60% {
+            transform: translateX(4px);
+        }
     }
 }

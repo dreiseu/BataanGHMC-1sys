@@ -39,12 +39,34 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => [
-                    'id' => $request->user()?->id,
-                    'name' => $request->user()?->name,
-                    'email' => $request->user()?->email,
-                    'role' => $request->user()?->role,
-                ],
+                'user' => function () use ($request) {
+                    $sessionUser = $request->session()->get('soap_user_data');
+                    if (!$sessionUser) return null;
+
+                    // Always pull fresh role and permissions from DB
+                    $authority = \Illuminate\Support\Facades\DB::table('UserAuthority')
+                        ->where('BiometricID', $sessionUser['bioid'] ?? '')
+                        ->first(['role', 'permissions']);
+
+                    if ($authority) {
+                        $sessionUser['role'] = $authority->role ?? 'user';
+                        $permissions = $authority->permissions ?? '[]';
+                        $sessionUser['permissions'] = is_string($permissions)
+                            ? (json_decode($permissions, true) ?? [])
+                            : ($permissions ?? []);
+                    }
+
+                    return $sessionUser;
+                },
+            ],
+            'flash' => [
+                'toast' => function () use ($request) {
+                    $toast = $request->session()->get('toast');
+                    if (is_array($toast)) {
+                        $toast['id'] = uniqid();
+                    }
+                    return $toast;
+                },
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

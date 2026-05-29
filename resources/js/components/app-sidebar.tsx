@@ -1,19 +1,33 @@
-import { Link } from '@inertiajs/react';
-import { Activity, Award, BarChart3, BookOpen, Building2, Contact, FileText, FolderGit2, HeartPulse, IdCard, LayoutGrid, QrCode, ShieldCheck, Siren, Users } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
+import { useMemo, useState } from 'react';
+import {
+    Activity,
+    Award,
+    BarChart3,
+    BookOpen,
+    Building2,
+    Contact,
+    FileText,
+    FolderGit2,
+    HeartPulse,
+    IdCard,
+    LayoutGrid,
+    QrCode,
+    Search,
+    ShieldCheck,
+    Siren,
+    Users
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
+    SidebarInput,
+    SidebarRail,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -48,8 +62,8 @@ const mainNavItems: NavItem[] = [
         icon: Building2,
     },
     {
-        title: 'IHOMP',
-        href: '/ihomp',
+        title: 'IMISS',
+        href: '/imiss',
         icon: HeartPulse,
     },
     {
@@ -89,32 +103,43 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-];
-
 export function AppSidebar() {
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredNavItems = mainNavItems.filter((item) =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
-                                <AppLogo />
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarHeader>
+        <Sidebar collapsible="icon" variant="inset" className="p-0">
+            <SidebarContent className="gap-4 py-3">
+                <div className="px-3 pt-2 group-data-[collapsible=icon]:hidden">
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-sidebar-foreground/45" />
+                        <SidebarInput
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search menu..."
+                            className="h-10 rounded-lg border-sidebar-border/70 bg-sidebar-accent/35 pl-9 text-sidebar-foreground placeholder:text-sidebar-foreground/45 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-sidebar-ring/50"
+                        />
+                    </div>
+                </div>
 
-            <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain
+                    title="Platform"
+                    items={filteredNavItems}
+                    emptyMessage="No matching menu items."
+                />
             </SidebarContent>
-
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
+                <div className="p-2 text-xs text-left text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+                    Copyright &copy; Bataan General Hospital<br />and Medical Center 2025
+                </div>
+                <div className="hidden p-2 text-[10px] text-center text-sidebar-foreground/60 group-data-[collapsible=icon]:block font-semibold">
+                    BGHMC 2025
+                </div>
             </SidebarFooter>
+            <SidebarRail />
         </Sidebar>
     );
 }

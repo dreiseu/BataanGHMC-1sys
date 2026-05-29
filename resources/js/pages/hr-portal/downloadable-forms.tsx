@@ -49,14 +49,14 @@ export default function DownloadableForms() {
                     description="Access HR forms, templates, and request documents."
                 />
 
-                <div className="mb-4 flex items-center gap-2 rounded-xl border bg-card px-3 py-2 shadow-sm">
-                    <Search className="h-4 w-4 text-muted-foreground" />
+                <div className="mb-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 shadow-sm transition-colors focus-within:border-[#00D4FF]/50 focus-within:ring-2 focus-within:ring-[#00D4FF]/10">
+                    <Search className="h-5 w-5 text-[#5B0FBE]" />
 
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search forms..."
-                        className="w-full bg-transparent text-sm outline-none"
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                     />
                 </div>
 
@@ -64,19 +64,19 @@ export default function DownloadableForms() {
                     {filteredForms.map((form) => (
                         <div
                             key={form.title}
-                            className="flex items-center justify-between rounded-xl border bg-card p-4 shadow-sm"
+                            className="group flex items-center justify-between rounded-2xl border bg-card p-5 shadow-sm transition-all hover:border-[#00D4FF]/30 hover:shadow-md"
                         >
                             <div>
-                                <h2 className="font-semibold">
+                                <h2 className="font-semibold text-foreground group-hover:text-[#5B0FBE] transition-colors">
                                     {form.title}
                                 </h2>
 
-                                <p className="text-sm text-muted-foreground">
-                                    {form.category} • {form.fileType}
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    {form.category} • <span className="font-medium text-[#00D4FF]">{form.fileType}</span>
                                 </p>
                             </div>
 
-                            <button className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                            <button className="inline-flex items-center gap-2 rounded-xl border bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-[#5B0FBE] hover:text-white hover:border-[#5B0FBE]">
                                 <Download className="h-4 w-4" />
                                 Download
                             </button>

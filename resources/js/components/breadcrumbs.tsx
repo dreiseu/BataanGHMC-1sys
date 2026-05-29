@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { Fragment } from 'react';
+import { Home, ChevronRight } from 'lucide-react';
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -18,7 +19,7 @@ export function Breadcrumbs({
     return (
         <>
             {breadcrumbs.length > 0 && (
-                <Breadcrumb>
+                <Breadcrumb className="font-mono uppercase tracking-widest text-[10px] sm:text-xs">
                     <BreadcrumbList>
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
@@ -27,12 +28,15 @@ export function Breadcrumbs({
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
                                         {isLast ? (
-                                            <BreadcrumbPage>
+                                            <BreadcrumbPage className="font-bold text-foreground">
                                                 {item.title}
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link href={item.href}>
+                                                <Link 
+                                                    href={item.href}
+                                                    className="font-medium text-muted-foreground hover:text-[#00D4FF] transition-colors"
+                                                >
                                                     {item.title}
                                                 </Link>
                                             </BreadcrumbLink>
