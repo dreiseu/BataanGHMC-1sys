@@ -40,7 +40,14 @@ export function AppGlobalHeader() {
     useEffect(() => {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 15000); // 15 seconds
-        return () => clearInterval(interval);
+        
+        const handleNewNotification = () => fetchNotifications();
+        window.addEventListener('refresh-notifications', handleNewNotification);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('refresh-notifications', handleNewNotification);
+        };
     }, []);
 
     // The onMouseEnter directly calls router.post to mark as read, removing the need for a separate markAsRead function
@@ -141,8 +148,8 @@ export function AppGlobalHeader() {
                         <DropdownMenuTrigger className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 transition-colors focus:outline-none cursor-pointer">
                             <Bell className="h-5 w-5 text-white/90" />
                             {unreadCount > 0 && (
-                                <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                                <span className="absolute top-1 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm border border-[#1E293B]">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
                                 </span>
                             )}
                         </DropdownMenuTrigger>
@@ -200,7 +207,22 @@ export function AppGlobalHeader() {
                                                     className="rounded-sm"
                                                 />
                                             </div>
-                                            <div className="flex-1 min-w-0 flex items-start gap-2">
+                                            <div 
+                                                className="flex-1 min-w-0 flex items-start gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => {
+                                                    if (!notification.is_read) {
+                                                        markAsRead(notification.id);
+                                                    }
+                                                    if (notification.link) {
+                                                        const match = notification.message.match(/(TKT-\d{4}-\d{3})/);
+                                                        if (match) {
+                                                            router.visit(`${notification.link}?ticket=${match[1]}`);
+                                                        } else {
+                                                            router.visit(notification.link);
+                                                        }
+                                                    }
+                                                }}
+                                            >
                                                 <div className="flex-1 min-w-0">
                                                     <p className={`text-sm ${!notification.is_read ? 'font-bold text-foreground' : 'font-medium text-foreground/80'}`}>{notification.title}</p>
                                                     <p className={`text-xs mt-0.5 line-clamp-2 ${!notification.is_read ? 'text-muted-foreground font-medium' : 'text-muted-foreground/70'}`}>{notification.message}</p>

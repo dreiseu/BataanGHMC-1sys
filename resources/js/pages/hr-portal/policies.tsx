@@ -37,12 +37,12 @@ export default function Policies() {
                             key={policy.title}
                             className="group flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-sm transition-all hover:border-[#00D4FF]/30 hover:shadow-md cursor-pointer"
                         >
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                 <FileText className="h-6 w-6 transition-transform group-hover:scale-110" />
                             </div>
 
                             <div>
-                                <h2 className="font-semibold text-foreground group-hover:text-[#5B0FBE] transition-colors">
+                                <h2 className="font-semibold text-foreground group-hover:text-[#1E293B] transition-colors">
                                     {policy.title}
                                 </h2>
 

@@ -30,10 +30,12 @@ import {
     ArrowUp,
     AlertTriangle,
     MapPin,
-    File as FileIcon
+    File as FileIcon,
+    Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import {
     Dialog,
     DialogContent,
@@ -107,6 +109,7 @@ interface TicketType {
     priority: string;
     location?: string;
     local_number?: string;
+    pc_number?: string;
     accepted_at?: string;
     created_at: string;
     updated_at?: string;
@@ -124,28 +127,199 @@ interface TicketType {
     rating?: number;
     feedback_text?: string;
 }
+type ImissRequestType = {
+    id?: number;
+    value: string;
+    label: string;
+    description?: string | null;
+    is_active?: boolean;
+};
 
 interface IMISSProps {
     systems: HospitalSystemType[];
     tickets: TicketType[];
+    requestTypes?: ImissRequestType[];
 }
 
-const REQUEST_TYPE_LABELS: Record<string, string> = {
-    hardware: 'Hardware Repair / Issue',
-    network: 'Network / Internet Connectivity',
-    software: 'Software Installation / Error',
-    account: 'Account Access / Password Reset',
-    hims: 'HIMS (Reopening / Cancellation)',
-    emr: 'EMR (Records / Charges)',
-    other: 'Other Inquiry'
-};
+export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProps) {
+    const requestTypeLabels: Record<string, string> = {};
+    requestTypes.forEach(rt => requestTypeLabels[rt.value] = rt.label);
 
-export default function IMISS({ systems, tickets }: IMISSProps) {
+    const { auth } = usePage<any>().props;
+    const user = auth?.user;
+
+    const [ssoStatus, setSsoStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+    const [currentSSOUrl, setCurrentSSOUrl] = useState('');
     const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+    const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
 
+    const prevTicketsRef = useRef<TicketType[]>(tickets);
+
     useEffect(() => {
+        if (isDetailsOpen && selectedTicket) {
+            router.post('/notifications/read-by-ticket', {
+                ticket_number: selectedTicket.ticket_number
+            }, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    window.dispatchEvent(new CustomEvent('refresh-notifications'));
+                    toast.dismiss(`msg-${selectedTicket.ticket_number}`);
+                    toast.dismiss(`status-${selectedTicket.ticket_number}`);
+                }
+            });
+        }
+    }, [isDetailsOpen, selectedTicket]);
+
+    useEffect(() => {
+        // Restore unread toasts on page load
+        fetch('/notifications')
+            .then(res => res.json())
+            .then(data => {
+                const unread = data.filter((n: any) => !n.is_read);
+                unread.forEach((n: any) => {
+                    const match = n.message.match(/(TKT-\d{4}-\d{3})/);
+                    if (match) {
+                        const ticketNumber = match[1];
+                        
+                        if (n.title === 'Ticket Update') {
+                            toast(`Ticket ${ticketNumber} Updated`, {
+                                id: `status-${ticketNumber}`,
+                                description: (
+                                    <div
+                                        className="cursor-pointer group flex flex-col gap-1"
+                                        onClick={() => {
+                                            const currentTicket = prevTicketsRef.current.find(t => t.ticket_number === ticketNumber);
+                                            if (currentTicket) {
+                                                setSelectedTicket(currentTicket);
+                                                setIsDetailsOpen(true);
+                                            }
+                                        }}
+                                    >
+                                        <span>{n.message.replace(`Your ticket ${ticketNumber} is now: `, 'Status changed to ')}.</span>
+                                        <span className="text-blue-500 font-semibold group-hover:underline">Click to view &rarr;</span>
+                                    </div>
+                                ),
+                                icon: <AlertCircle className="h-6 w-6 text-blue-500 mr-5" />,
+                                duration: 99999999,
+                                closeButton: true,
+                            });
+                        } else if (n.title === 'New Message') {
+                            toast(`New Message on ${ticketNumber}`, {
+                                id: `msg-${ticketNumber}`,
+                                description: (
+                                    <div
+                                        className="cursor-pointer group flex flex-col gap-1 mt-0.5"
+                                        onClick={() => {
+                                            const currentTicket = prevTicketsRef.current.find(t => t.ticket_number === ticketNumber);
+                                            if (currentTicket) {
+                                                setSelectedTicket(currentTicket);
+                                                setIsDetailsOpen(true);
+                                            }
+                                        }}
+                                    >
+                                        <span>You have new message(s).</span>
+                                        <span className="text-blue-500 font-semibold group-hover:underline">Click to open chat &rarr;</span>
+                                    </div>
+                                ),
+                                icon: <MessageSquare className="h-6 w-6 text-blue-500 mr-5" />,
+                                duration: 99999999,
+                                closeButton: true,
+                            });
+                        }
+                    }
+                });
+            })
+            .catch(err => console.error('Failed to restore notifications:', err));
+
+        // Check for deep link
+        const params = new URLSearchParams(window.location.search);
+        const ticketParam = params.get('ticket');
+        if (ticketParam) {
+            const ticketToOpen = tickets.find(t => t.ticket_number === ticketParam);
+            if (ticketToOpen) {
+                setSelectedTicket(ticketToOpen);
+                setIsDetailsOpen(true);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (prevTicketsRef.current && prevTicketsRef.current !== tickets) {
+            tickets.forEach(newTicket => {
+                const oldTicket = prevTicketsRef.current.find(t => t.id === newTicket.id);
+                if (oldTicket) {
+                    if (oldTicket.status !== newTicket.status) {
+                        toast(`Ticket ${newTicket.ticket_number} Updated`, {
+                            id: `status-${newTicket.ticket_number}`,
+                            description: (
+                                <div
+                                    className="cursor-pointer group flex flex-col gap-1"
+                                    onClick={() => {
+                                        setSelectedTicket(newTicket);
+                                        setIsDetailsOpen(true);
+                                    }}
+                                >
+                                    <span>Status changed to {newTicket.status}.</span>
+                                    <span className="text-blue-500 font-semibold group-hover:underline">Click to view &rarr;</span>
+                                </div>
+                            ),
+                            icon: <AlertCircle className="h-6 w-6 text-blue-500 mr-5" />,
+                            duration: 99999999,
+                            closeButton: true,
+                        });
+                        router.post('/notifications', {
+                            title: 'Ticket Update',
+                            message: `Your ticket ${newTicket.ticket_number} is now: ${newTicket.status}`,
+                            link: '/imiss'
+                        }, {
+                            preserveScroll: true,
+                            preserveState: true,
+                            onSuccess: () => window.dispatchEvent(new CustomEvent('refresh-notifications'))
+                        });
+                    }
+                    const oldCommentsLength = oldTicket.comments?.length || 0;
+                    const newCommentsLength = newTicket.comments?.length || 0;
+                    if (newCommentsLength > oldCommentsLength) {
+                        const newComments = newTicket.comments?.slice(oldCommentsLength) || [];
+                        const fromOthers = newComments.filter(c => c.sender_bioid !== user?.bioid);
+                        if (fromOthers.length > 0) {
+                            toast(`New Message on ${newTicket.ticket_number}`, {
+                                id: `msg-${newTicket.ticket_number}`,
+                                description: (
+                                    <div
+                                        className="cursor-pointer group flex flex-col gap-1 mt-0.5"
+                                        onClick={() => {
+                                            setSelectedTicket(newTicket);
+                                            setIsDetailsOpen(true);
+                                        }}
+                                    >
+                                        <span>You have new message(s).</span>
+                                        <span className="text-blue-500 font-semibold group-hover:underline">Click to open chat &rarr;</span>
+                                    </div>
+                                ),
+                                icon: <MessageSquare className="h-6 w-6 text-blue-500 mr-5" />,
+                                duration: 99999999,
+                                closeButton: true,
+                            });
+                            router.post('/notifications', {
+                                title: 'New Message',
+                                message: `You have a new message on ticket ${newTicket.ticket_number}`,
+                                link: '/imiss'
+                            }, {
+                                preserveScroll: true,
+                                preserveState: true,
+                                onSuccess: () => window.dispatchEvent(new CustomEvent('refresh-notifications'))
+                            });
+                        }
+                    }
+                }
+            });
+        }
+        prevTicketsRef.current = tickets;
+
         if (selectedTicket) {
             const updated = tickets.find(t => t.id === selectedTicket.id);
             if (updated) setSelectedTicket(updated);
@@ -161,6 +335,87 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
         return () => clearInterval(interval);
     }, []);
 
+    const handleVisit = (e: React.MouseEvent, system: HospitalSystemType) => {
+        e.preventDefault();
+        const url = system.url.startsWith('http') ? system.url : `https://${system.url}`;
+
+        if ((system.name === "Employee's Portal" || system.name === "EFMS Job Order Request System") && user?.password) {
+            // Display our beautiful loading overlay so the user knows we are working
+            setSsoStatus('loading');
+            setCurrentSSOUrl(url);
+
+            // 1. Open a microscopic popup window to hide the 100:Success text
+            const windowName = 'sso_popup_' + Date.now();
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.target = windowName;
+
+            let targetUrl = url;
+            if (!targetUrl.endsWith('/login') && !targetUrl.includes('login.php')) {
+                targetUrl = targetUrl.endsWith('/') ? `${targetUrl}login` : `${targetUrl}/login`;
+            }
+            form.action = targetUrl;
+
+            const fields = [
+                { name: 'bioid', value: user.bioid },
+                { name: 'username', value: user.bioid },
+                { name: 'bioUserName', value: user.bioid },
+                { name: 'password', value: user.password },
+                { name: 'pass', value: user.password },
+                { name: 'login', value: 'login' },
+                { name: 'loginForm', value: '' }
+            ];
+
+            fields.forEach(f => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = f.name;
+                input.value = f.value;
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+
+            // 2. Open the popup as small and far away as the OS will allow
+            const popup = window.open('', windowName, 'width=1,height=1,left=20000,top=20000,menubar=no,toolbar=no,location=no,status=no,titlebar=no,scrollbars=no');
+            form.submit();
+
+            // Instantly try to force the popup into the background
+            try {
+                if (popup) popup.blur();
+                window.focus();
+            } catch (e) { }
+
+            // 3. Wait for the server to process the login and save the cookie
+            setTimeout(() => {
+                // Safely close the tiny popup (ignoring cross-origin exceptions)
+                try {
+                    if (popup && !popup.closed) {
+                        popup.close();
+                    }
+                } catch (e) {
+                    try { popup?.close(); } catch (e2) { }
+                }
+
+                try {
+                    document.body.removeChild(form);
+                } catch (e) { }
+
+
+                // Transition to the success dialog
+                setSsoStatus('success');
+
+                // Give the user 1 second to read the "Proceeding..." text before navigating
+                setTimeout(() => {
+                    window.location.href = url;
+                }, 1000);
+            }, 1500);
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [isConfirmResolutionOpen, setIsConfirmResolutionOpen] = useState(false);
     const [isCancelTicketOpen, setIsCancelTicketOpen] = useState(false);
@@ -175,13 +430,18 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [selectedTicket?.comments]);
+        if (isDetailsOpen) {
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+            }, 50);
+        }
+    }, [selectedTicket?.comments, isDetailsOpen]);
 
     const { data, setData, post, processing, reset, errors } = useForm({
         request_type: '',
         description: '',
         local_number: '',
+        pc_number: '',
         location: '',
         priority: 'normal',
         attachments: [] as File[],
@@ -228,7 +488,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
     const [historyStatusFilter, setHistoryStatusFilter] = useState('All');
 
     const filteredHistoryTickets = tickets.filter(t => {
-        const typeLabel = REQUEST_TYPE_LABELS[t.request_type] || t.request_type;
+        const typeLabel = requestTypeLabels[t.request_type] || t.request_type;
         const matchesSearch = t.ticket_number.toLowerCase().includes(historySearch.toLowerCase()) ||
             typeLabel.toLowerCase().includes(historySearch.toLowerCase());
         const matchesStatus = historyStatusFilter === 'All' || t.status === historyStatusFilter;
@@ -251,12 +511,12 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                 <div className="flex-1 flex flex-col gap-6">
 
                     {/* Hero Banner */}
-                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
+                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
                         <div className="absolute inset-0 z-0">
                             <LineWaves />
                         </div>
                         <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#5B0FBE] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#1E293B] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
 
                         <div className="relative z-10 w-full max-w-3xl">
                             <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm flex items-center gap-2">
@@ -272,7 +532,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
                             <button
                                 onClick={() => setIsSubmitDialogOpen(true)}
-                                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#00D4FF] px-5 py-3 text-sm font-bold text-[#260554] transition-all hover:bg-white hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] hover:-translate-y-0.5"
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#00D4FF] px-5 py-3 text-sm font-bold text-[#0F172A] transition-all hover:bg-white hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] hover:-translate-y-0.5"
                             >
                                 <PlusCircle className="h-5 w-5" />
                                 Submit a New Ticket
@@ -315,22 +575,20 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                         <>
                                             {paginatedSystems.map((system) => {
                                                 return (
-                                                    <tr key={system.id} className="group hover:bg-[#5B0FBE]/5 transition-colors h-[57px]">
-                                                        <td className="px-4 py-2 font-semibold text-foreground group-hover:text-[#5B0FBE] transition-colors">
+                                                    <tr key={system.id} className="group hover:bg-[#1E293B]/5 transition-colors h-[57px]">
+                                                        <td className="px-4 py-2 font-semibold text-foreground group-hover:text-[#1E293B] transition-colors">
                                                             {system.name}
                                                         </td>
                                                         <td className="px-4 py-2 text-muted-foreground">
                                                             {system.url}
                                                         </td>
                                                         <td className="px-4 py-2 text-right">
-                                                            <a
-                                                                href={system.url.startsWith('http') ? system.url : `https://${system.url}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-[#00D4FF] hover:text-[#260554] transition-all"
+                                                            <button
+                                                                onClick={(e) => handleVisit(e, system)}
+                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-[#00D4FF] hover:text-[#0F172A] transition-all cursor-pointer"
                                                             >
                                                                 Visit <ExternalLink className="h-3 w-3" />
-                                                            </a>
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 );
@@ -401,11 +659,11 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                         <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
                                         <div className="relative z-10">
-                                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                                 <Icon className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                                             </div>
 
-                                            <h3 className="font-bold text-foreground group-hover:text-[#5B0FBE] transition-colors">
+                                            <h3 className="font-bold text-foreground group-hover:text-[#1E293B] transition-colors">
                                                 {service.title}
                                             </h3>
 
@@ -425,10 +683,10 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
                     {/* Active Ticket Card */}
                     <div className="rounded-3xl border bg-card p-6 shadow-sm relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#5B0FBE]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#1E293B]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
                         <div className="flex items-center justify-between mb-4 relative z-10">
-                            <h2 className="text-lg font-bold tracking-tight">
+                            <h2 className="text-base font-bold tracking-tight">
                                 Active Tickets
                             </h2>
                             {activeTickets.length > 0 && (
@@ -467,11 +725,11 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                     return (
                                         <div key={activeTicket.id} className="relative z-10 rounded-2xl border bg-[#00D4FF]/5 p-4 transition-all duration-300">
                                             <div className="mb-3">
-                                                <div className="text-[10px] font-bold text-[#5B0FBE] uppercase tracking-wider mb-1">
+                                                <div className="text-[10px] font-bold text-[#1E293B] uppercase tracking-wider mb-1">
                                                     {activeTicket.ticket_number}
                                                 </div>
                                                 <h3 className="font-semibold text-foreground text-sm leading-snug">
-                                                    {REQUEST_TYPE_LABELS[activeTicket.request_type] || activeTicket.request_type}
+                                                    {requestTypeLabels[activeTicket.request_type] || activeTicket.request_type}
                                                 </h3>
                                                 {activeTicket.accepted_by_name && (
                                                     <div className="mt-2 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
@@ -534,7 +792,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                                             setTicketToResolve(activeTicket);
                                                             setIsConfirmResolutionOpen(true);
                                                         }}
-                                                        className="w-full relative z-10 font-semibold bg-[#5B0FBE] hover:bg-[#5B0FBE]/90 text-white cursor-pointer border-none"
+                                                        className="w-full relative z-10 font-semibold bg-[#1E293B] hover:bg-[#1E293B]/90 text-white cursor-pointer border-none"
                                                     >
                                                         Confirm Resolution
                                                     </Button>
@@ -545,7 +803,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                                             setSelectedTicket(activeTicket);
                                                             setIsDetailsOpen(true);
                                                         }}
-                                                        className="w-full relative z-10 font-semibold border-[#5B0FBE]/30 text-[#5B0FBE] hover:bg-[#5B0FBE]/10 hover:text-[#5B0FBE] cursor-pointer"
+                                                        className="w-full relative z-10 font-semibold border-[#1E293B]/30 text-[#1E293B] hover:bg-[#1E293B]/10 hover:text-[#1E293B] cursor-pointer"
                                                     >
                                                         View Details
                                                     </Button>
@@ -572,7 +830,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                             <h2 className="text-lg font-bold tracking-tight">
                                 Ticket History
                             </h2>
-                            <div className="h-8 w-8 rounded-full bg-[#5B0FBE]/10 flex items-center justify-center text-[#5B0FBE]">
+                            <div className="h-8 w-8 rounded-full bg-[#1E293B]/10 flex items-center justify-center text-[#1E293B]">
                                 <Ticket className="h-4 w-4" />
                             </div>
                         </div>
@@ -593,13 +851,13 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center mb-0.5">
-                                                <span className="text-[10px] font-bold text-[#5B0FBE] uppercase tracking-wider">{item.ticket_number}</span>
+                                                <span className="text-[10px] font-bold text-[#1E293B] uppercase tracking-wider">{item.ticket_number}</span>
                                                 <span className="text-[10px] font-medium text-muted-foreground">
                                                     {new Date(item.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                                 </span>
                                             </div>
-                                            <p className="text-sm font-semibold text-foreground truncate group-hover:text-[#5B0FBE] transition-colors">
-                                                {REQUEST_TYPE_LABELS[item.request_type] || item.request_type}
+                                            <p className="text-sm font-semibold text-foreground truncate group-hover:text-[#1E293B] transition-colors">
+                                                {requestTypeLabels[item.request_type] || item.request_type}
                                             </p>
                                         </div>
                                     </div>
@@ -614,7 +872,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                         <div className="pt-4 border-t shrink-0">
                             <button
                                 onClick={() => setIsHistoryOpen(true)}
-                                className="flex items-center justify-center gap-1.5 w-full rounded-xl bg-muted/50 p-2.5 text-sm font-semibold text-muted-foreground hover:bg-[#5B0FBE]/10 hover:text-[#5B0FBE] transition-colors cursor-pointer"
+                                className="flex items-center justify-center gap-1.5 w-full rounded-xl bg-muted/50 p-2.5 text-sm font-semibold text-muted-foreground hover:bg-[#1E293B]/10 hover:text-[#1E293B] transition-colors cursor-pointer"
                             >
                                 View all history
                                 <ChevronRight className="h-4 w-4" />
@@ -639,19 +897,19 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                         </div>
 
                         <div className="flex flex-col gap-3 relative z-10">
-                            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3 hover:bg-[#5B0FBE]/5 transition-colors">
+                            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3 hover:bg-[#1E293B]/5 transition-colors">
                                 <div className="flex items-center gap-2">
-                                    <Cpu className="h-4 w-4 text-[#5B0FBE]" />
+                                    <Cpu className="h-4 w-4 text-[#1E293B]" />
                                     <span className="font-semibold text-sm">Programmers</span>
                                 </div>
-                                <span className="font-bold text-[#5B0FBE] bg-[#5B0FBE]/10 px-2.5 py-0.5 rounded-full text-sm">1114</span>
+                                <span className="font-bold text-[#1E293B] bg-[#1E293B]/10 px-2.5 py-0.5 rounded-full text-sm">1114</span>
                             </div>
-                            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3 hover:bg-[#5B0FBE]/5 transition-colors">
+                            <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3 hover:bg-[#1E293B]/5 transition-colors">
                                 <div className="flex items-center gap-2">
-                                    <Monitor className="h-4 w-4 text-[#5B0FBE]" />
+                                    <Monitor className="h-4 w-4 text-[#1E293B]" />
                                     <span className="font-semibold text-sm">Technical Support</span>
                                 </div>
-                                <span className="font-bold text-[#5B0FBE] bg-[#5B0FBE]/10 px-2.5 py-0.5 rounded-full text-sm">1115</span>
+                                <span className="font-bold text-[#1E293B] bg-[#1E293B]/10 px-2.5 py-0.5 rounded-full text-sm">1115</span>
                             </div>
                         </div>
                     </div>
@@ -660,10 +918,10 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
             </div>
 
             <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
-                <DialogContent className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white">
-                    <div className="bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-6 text-white relative overflow-hidden">
+                <DialogContent className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white [&>button]:cursor-pointer data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-[#00D4FF] opacity-20 blur-2xl mix-blend-screen pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-32 w-32 rounded-full bg-[#5B0FBE] opacity-40 blur-2xl mix-blend-screen pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-32 w-32 rounded-full bg-[#1E293B] opacity-40 blur-2xl mix-blend-screen pointer-events-none"></div>
                         <DialogHeader className="relative z-10">
                             <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
                                 <Activity className="h-5 w-5 text-[#00D4FF]" />
@@ -676,41 +934,53 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                     </div>
 
                     <div className="p-6 grid gap-5">
+                        <div className="grid gap-2">
+                            <label className="text-sm font-semibold text-foreground">
+                                Request Type <span className="text-destructive">*</span>
+                            </label>
+                            <Select value={data.request_type} onValueChange={(val) => setData('request_type', val)}>
+                                <SelectTrigger className="w-full rounded-xl !bg-white focus:ring-[#1E293B]/30 overflow-hidden cursor-pointer">
+                                    <SelectValue placeholder="Select type of issue..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {requestTypes.map(rt => (
+                                        <SelectItem key={rt.value} value={rt.value}>{rt.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.request_type && <span className="text-xs text-destructive">{errors.request_type}</span>}
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <label className="text-sm font-semibold text-foreground">
-                                    Request Type <span className="text-destructive">*</span>
-                                </label>
-                                <Select value={data.request_type} onValueChange={(val) => setData('request_type', val)}>
-                                    <SelectTrigger className="w-full rounded-xl bg-white focus:ring-[#5B0FBE]/30 overflow-hidden">
-                                        <SelectValue placeholder="Select type of issue..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="hardware">Hardware Repair / Issue</SelectItem>
-                                        <SelectItem value="network">Network / Internet Connectivity</SelectItem>
-                                        <SelectItem value="software">Software Installation / Error</SelectItem>
-                                        <SelectItem value="account">Account Access / Password Reset</SelectItem>
-                                        <SelectItem value="hims">HIMS (Reopening / Cancellation)</SelectItem>
-                                        <SelectItem value="emr">EMR (Records / Charges)</SelectItem>
-                                        <SelectItem value="other">Other Inquiry</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {errors.request_type && <span className="text-xs text-destructive">{errors.request_type}</span>}
-                            </div>
                             <div className="grid gap-2">
                                 <label className="text-sm font-semibold text-foreground">
                                     Local Number <span className="text-muted-foreground font-normal">(Optional)</span>
                                 </label>
                                 <div className="relative w-full">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5B0FBE]/60" />
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
                                     <Input
                                         placeholder="e.g., 123"
-                                        className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#5B0FBE]/30"
+                                        className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.local_number}
                                         onChange={e => setData('local_number', e.target.value)}
                                     />
                                 </div>
                                 {errors.local_number && <span className="text-xs text-destructive">{errors.local_number}</span>}
+                            </div>
+                            <div className="grid gap-2">
+                                <label className="text-sm font-semibold text-foreground">
+                                    PC Number <span className="text-muted-foreground font-normal">(Optional)</span>
+                                </label>
+                                <div className="relative w-full">
+                                    <Monitor className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
+                                    <Input
+                                        placeholder="e.g., PC-01"
+                                        className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
+                                        value={data.pc_number}
+                                        onChange={e => setData('pc_number', e.target.value)}
+                                    />
+                                </div>
+                                {errors.pc_number && <span className="text-xs text-destructive">{errors.pc_number}</span>}
                             </div>
                         </div>
 
@@ -719,10 +989,10 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                 Location / Ward <span className="text-destructive">*</span>
                             </label>
                             <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#5B0FBE]/60" />
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
                                 <Input
-                                    placeholder="e.g., Pharmacy Dept, Ward 3 Station"
-                                    className="rounded-xl pl-9 bg-white focus-visible:ring-[#5B0FBE]/30"
+                                    placeholder="e.g., Pharmacy Dept, Ward 3"
+                                    className="rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                     value={data.location}
                                     onChange={e => setData('location', e.target.value)}
                                 />
@@ -732,7 +1002,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
 
 
-                        <div className="grid gap-3 mt-2">
+                        {/* <div className="grid gap-3 mt-2">
                             <label className="text-sm font-semibold text-foreground">
                                 Priority Level <span className="text-destructive">*</span>
                             </label>
@@ -756,7 +1026,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </div> */}
 
                         <div className="grid gap-2">
                             <label className="text-sm font-semibold text-foreground">
@@ -764,7 +1034,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                             </label>
                             <Textarea
                                 placeholder="Please describe the issue in detail..."
-                                className="min-h-[100px] rounded-xl resize-none bg-white focus-visible:ring-[#5B0FBE]/30"
+                                className="min-h-[100px] rounded-xl resize-none bg-white focus-visible:ring-[#1E293B]/30"
                                 value={data.description}
                                 onChange={e => setData('description', e.target.value)}
                             />
@@ -826,9 +1096,9 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                             Cancel
                         </Button>
                         <Button
-                            onClick={handleSubmitTicket}
+                            onClick={() => setIsConfirmSubmitOpen(true)}
                             disabled={processing}
-                            className="rounded-xl bg-[#5B0FBE] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group"
+                            className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group"
                         >
                             <span>Submit Request</span>
                             {processing ? (
@@ -842,7 +1112,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
             </Dialog>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent
-                    className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white"
+                    className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out"
                     onInteractOutside={(e) => {
                         if (commentForm.processing) {
                             e.preventDefault();
@@ -852,7 +1122,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                         e.preventDefault();
                     }}
                 >
-                    <div className="bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-6 text-white relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-[#00D4FF] opacity-20 blur-2xl mix-blend-screen pointer-events-none"></div>
                         <DialogHeader>
                             <div className="mb-2 relative z-10">
@@ -863,42 +1133,39 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                             </div>
                             <div className="flex items-center justify-start gap-3 relative z-10 mt-2 pr-4 sm:pr-8">
                                 <DialogTitle className="text-xl font-bold">
-                                    {selectedTicket ? (REQUEST_TYPE_LABELS[selectedTicket.request_type] || selectedTicket.request_type) : ''}
+                                    {selectedTicket ? (requestTypeLabels[selectedTicket.request_type] || selectedTicket.request_type) : ''}
                                 </DialogTitle>
                                 <div className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold text-white flex items-center gap-1.5 border border-white/10 shrink-0">
                                     {selectedTicket?.status === 'Accomplished' ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                                     {selectedTicket?.status}
                                 </div>
                             </div>
-                            <DialogDescription className="text-white/80 relative z-10 flex flex-col gap-3 mt-4">
-                                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm items-center">
-                                    <div className="flex items-center gap-2">
-                                        <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">Location:</span>
-                                        <span className="font-bold text-white">{selectedTicket?.location || 'Not specified'}</span>
+                            <DialogDescription asChild>
+                                <div className="text-white/80 relative z-10 flex flex-col gap-3 mt-4">
+                                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm items-center">
+                                        <div className="flex items-center gap-2">
+                                            <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">Local #:</span>
+                                            <span className="font-bold text-white">{selectedTicket?.local_number || 'N/A'}</span>
+                                        </div>
+                                        <div className="w-px h-4 bg-white/20 hidden sm:block"></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">PC #:</span>
+                                            <span className="font-bold text-white">{selectedTicket?.pc_number || 'N/A'}</span>
+                                        </div>
+                                        <div className="w-px h-4 bg-white/20 hidden sm:block"></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">Location:</span>
+                                            <span className="font-bold text-white">{selectedTicket?.location || 'Not specified'}</span>
+                                        </div>
                                     </div>
-                                    <div className="w-px h-4 bg-white/20 hidden sm:block"></div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">Local #:</span>
-                                        <span className="font-bold text-white">{selectedTicket?.local_number || 'N/A'}</span>
+                                    <div className="flex flex-col gap-1 mt-1 text-xs">
+                                        <span>Submitted on {selectedTicket && new Date(selectedTicket.created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                                        {selectedTicket?.accepted_by_name && (
+                                            <span className="inline-flex items-center gap-1.5 bg-black/20 w-fit px-2 py-0.5 rounded-full font-medium mt-1 border border-white/5">
+                                                Assigned to: {selectedTicket.accepted_by_name}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div className="w-px h-4 bg-white/20 hidden sm:block"></div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="opacity-70 font-medium uppercase tracking-wider text-[10px]">Priority:</span>
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${selectedTicket?.priority === 'critical' ? 'bg-red-500 text-white' :
-                                            selectedTicket?.priority === 'high' ? 'bg-orange-500 text-white' :
-                                                'bg-blue-500 text-white'
-                                            }`}>
-                                            {selectedTicket?.priority}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-1 mt-1 text-xs">
-                                    <span>Submitted on {selectedTicket && new Date(selectedTicket.created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-                                    {selectedTicket?.accepted_by_name && (
-                                        <span className="inline-flex items-center gap-1.5 bg-black/20 w-fit px-2 py-0.5 rounded-full font-medium mt-1 border border-white/5">
-                                            Assigned to: {selectedTicket.accepted_by_name}
-                                        </span>
-                                    )}
                                 </div>
                             </DialogDescription>
                         </DialogHeader>
@@ -915,8 +1182,8 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
                         {selectedTicket?.remarks && (
                             <div className="mb-6">
-                                <h4 className="text-sm font-bold text-[#5B0FBE] mb-2 uppercase tracking-wider">Admin Remarks</h4>
-                                <div className="rounded-xl bg-[#5B0FBE]/5 p-4 text-sm text-foreground/80 border border-[#5B0FBE]/20 whitespace-pre-wrap">
+                                <h4 className="text-sm font-bold text-[#1E293B] mb-2 uppercase tracking-wider">Admin Remarks</h4>
+                                <div className="rounded-xl bg-[#1E293B]/5 p-4 text-sm text-foreground/80 border border-[#1E293B]/20 whitespace-pre-wrap">
                                     {selectedTicket.remarks}
                                 </div>
                             </div>
@@ -971,7 +1238,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
                     <div className="border-t border-muted bg-card shrink-0">
                         <div className="p-3 bg-muted/20 font-semibold text-xs flex items-center gap-2 border-b text-foreground">
-                            <MessageSquare className="h-3.5 w-3.5 text-[#5B0FBE]" />
+                            <MessageSquare className="h-3.5 w-3.5 text-[#1E293B]" />
                             Comments & Updates
                         </div>
                         <div className="max-h-48 overflow-y-auto p-4 flex flex-col gap-3 emr-scrollbar bg-card">
@@ -981,7 +1248,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                         <div className={`text-[10px] text-muted-foreground mb-1 px-1`}>
                                             {comment.sender_name} • {new Date(comment.created_at).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, month: 'short', day: 'numeric' })}
                                         </div>
-                                        <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm ${comment.sender_bioid === (usePage<any>().props.auth?.user?.bio_id || usePage<any>().props.auth?.user?.id) ? 'bg-[#5B0FBE] text-white rounded-br-none' : 'bg-muted rounded-bl-none text-foreground'}`}>
+                                        <div className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm ${comment.sender_bioid === (usePage<any>().props.auth?.user?.bio_id || usePage<any>().props.auth?.user?.id) ? 'bg-[#1E293B] text-white rounded-br-none' : 'bg-muted rounded-bl-none text-foreground'}`}>
                                             {comment.message && <div>{comment.message}</div>}
                                             {comment.attachments && comment.attachments.length > 0 && (
                                                 <div className={`mt-1 flex flex-wrap gap-2 ${comment.message ? 'pt-2 border-t border-white/20' : ''}`}>
@@ -1014,7 +1281,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                 <div className="flex flex-wrap gap-2">
                                     {commentForm.data.attachments.map((file, idx) => (
                                         <div key={idx} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded-lg border w-max">
-                                            <FileIcon className="h-4 w-4 text-[#5B0FBE]" />
+                                            <FileIcon className="h-4 w-4 text-[#1E293B]" />
                                             <span className="truncate max-w-[150px] font-medium">{file.name}</span>
                                             <button onClick={() => {
                                                 const inputElement = document.getElementById('chat-input');
@@ -1057,7 +1324,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                         }}
                                         accept=".jpg,.jpeg,.png,.pdf"
                                     />
-                                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#5B0FBE] cursor-pointer">
+                                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#1E293B] cursor-pointer">
                                         <Paperclip className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -1082,7 +1349,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
                     <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-between items-center gap-3 shrink-0">
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            {selectedTicket?.status !== 'Accomplished' && selectedTicket?.status !== 'Resolved' && selectedTicket?.status !== 'Cancelled' && (
+                            {selectedTicket?.status === 'Ticket Submitted' && (
                                 <Button
                                     variant="ghost"
                                     onClick={() => setIsCancelTicketOpen(true)}
@@ -1105,7 +1372,7 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
 
             <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
                 <SheetContent side="right" className="w-full sm:max-w-xl p-0 border-l overflow-hidden flex flex-col bg-card">
-                    <div className="bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-6 text-white relative shrink-0">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative shrink-0">
                         <div className="absolute top-0 left-0 -mt-20 -ml-20 h-48 w-48 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
                         <SheetHeader className="text-left p-0">
                             <SheetTitle className="text-2xl font-bold text-white flex items-center gap-2">
@@ -1160,13 +1427,13 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[11px] font-bold text-[#5B0FBE] uppercase tracking-wider bg-[#5B0FBE]/10 px-2 py-0.5 rounded-full">{item.ticket_number}</span>
+                                            <span className="text-[11px] font-bold text-[#1E293B] uppercase tracking-wider bg-[#1E293B]/10 px-2 py-0.5 rounded-full">{item.ticket_number}</span>
                                             <span className="text-[11px] font-medium text-muted-foreground">
                                                 {new Date(item.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-bold text-foreground truncate group-hover:text-[#5B0FBE] transition-colors">
-                                            {REQUEST_TYPE_LABELS[item.request_type] || item.request_type}
+                                        <p className="text-sm font-bold text-foreground truncate group-hover:text-[#1E293B] transition-colors">
+                                            {requestTypeLabels[item.request_type] || item.request_type}
                                         </p>
                                         <p className="text-xs text-muted-foreground mt-1 truncate">
                                             Status: {item.status}
@@ -1290,6 +1557,63 @@ export default function IMISS({ systems, tickets }: IMISSProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <AlertDialog open={isConfirmSubmitOpen} onOpenChange={setIsConfirmSubmitOpen}>
+                <AlertDialogContent className="sm:max-w-[425px] rounded-2xl border-0 bg-card p-6 shadow-2xl">
+                    <AlertDialogHeader className="text-left">
+                        <AlertDialogTitle className="text-xl flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00D4FF]/10">
+                                <AlertCircle className="h-5 w-5 text-[#00D4FF]" />
+                            </div>
+                            Confirm Submission
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm mt-3 text-foreground/80">
+                            The turnaround time for this request is <strong>2 hours</strong>. Do you want to continue submitting this job order?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-6 sm:justify-end flex-col sm:flex-row gap-3">
+                        <AlertDialogCancel className="mt-0 rounded-xl font-semibold cursor-pointer">
+                            No, Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setIsConfirmSubmitOpen(false);
+                                handleSubmitTicket();
+                            }}
+                            disabled={processing}
+                            className="rounded-xl bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-neutral-900 font-bold cursor-pointer"
+                        >
+                            Yes, Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* SSO Loading & Success Overlay */}
+            {ssoStatus !== 'idle' && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <div className="flex flex-col items-center p-8 bg-card rounded-2xl shadow-2xl border border-border w-[350px]">
+                        {ssoStatus === 'loading' ? (
+                            <>
+                                <Loader2 className="h-12 w-12 text-[#00D4FF] animate-spin mb-4" />
+                                <h3 className="text-xl font-semibold text-foreground">Unified Access Portal</h3>
+                                <p className="text-sm text-muted-foreground mt-1 text-center">Authenticating securely to<br />Employee's Portal...</p>
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+                                <h3 className="text-xl font-semibold text-foreground">Authentication Complete</h3>
+                                <p className="text-sm text-muted-foreground mt-1 text-center mb-4">You have been successfully signed in.</p>
+                                <div className="flex items-center text-sm font-medium text-[#00D4FF]">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Proceeding to dashboard...
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </>
     );
 }

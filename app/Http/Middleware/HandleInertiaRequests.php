@@ -59,6 +59,10 @@ class HandleInertiaRequests extends Middleware
                     return $sessionUser;
                 },
             ],
+            'hospital_systems' => function () {
+                return \Illuminate\Support\Facades\DB::table('hospital_systems')->get(['name', 'url']);
+            },
+            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'toast' => function () use ($request) {
                     $toast = $request->session()->get('toast');
@@ -68,7 +72,6 @@ class HandleInertiaRequests extends Middleware
                     return $toast;
                 },
             ],
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
 }

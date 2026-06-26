@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { ChevronsUpDown } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,14 +57,6 @@ function NavUserHeader({ variant }: { variant: 'header' | 'global' }) {
                 >
                     {variant === 'global' ? (
                         <>
-                            <div className="min-w-0 flex-1 text-right">
-                                <div className="truncate text-sm font-semibold tracking-[0.02em] text-white uppercase">
-                                    {auth.user.name}
-                                </div>
-                                <div className="truncate text-xs font-medium text-white/75">
-                                    {resolveDivisionLabel(auth.user)}
-                                </div>
-                            </div>
                             <Avatar className="h-10 w-10 overflow-hidden rounded-full border border-white/15">
                                 <AvatarImage
                                     src={auth.user.avatar}
@@ -74,7 +66,16 @@ function NavUserHeader({ variant }: { variant: 'header' | 'global' }) {
                                     {getInitials(auth.user.name)}
                                 </AvatarFallback>
                             </Avatar>
-                            <ChevronsUpDown className="size-4 text-white/70" />
+                            <div className="min-w-0 flex-1 text-left">
+                                <div className="truncate text-sm font-semibold tracking-[0.02em] text-white uppercase">
+                                    {auth.user.name}
+                                </div>
+                                <div className="truncate text-xs font-medium text-white/75">
+                                    {resolveDivisionLabel(auth.user)}
+                                </div>
+                            </div>
+
+                            <ChevronDown className="size-4 text-white/70" />
                         </>
                     ) : (
                         <>

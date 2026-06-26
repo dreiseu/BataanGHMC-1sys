@@ -50,7 +50,7 @@ export default function DownloadableForms() {
                 />
 
                 <div className="mb-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 shadow-sm transition-colors focus-within:border-[#00D4FF]/50 focus-within:ring-2 focus-within:ring-[#00D4FF]/10">
-                    <Search className="h-5 w-5 text-[#5B0FBE]" />
+                    <Search className="h-5 w-5 text-[#1E293B]" />
 
                     <input
                         value={search}
@@ -67,7 +67,7 @@ export default function DownloadableForms() {
                             className="group flex items-center justify-between rounded-2xl border bg-card p-5 shadow-sm transition-all hover:border-[#00D4FF]/30 hover:shadow-md"
                         >
                             <div>
-                                <h2 className="font-semibold text-foreground group-hover:text-[#5B0FBE] transition-colors">
+                                <h2 className="font-semibold text-foreground group-hover:text-[#1E293B] transition-colors">
                                     {form.title}
                                 </h2>
 
@@ -76,7 +76,7 @@ export default function DownloadableForms() {
                                 </p>
                             </div>
 
-                            <button className="inline-flex items-center gap-2 rounded-xl border bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-[#5B0FBE] hover:text-white hover:border-[#5B0FBE]">
+                            <button className="inline-flex items-center gap-2 rounded-xl border bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-[#1E293B] hover:text-white hover:border-[#1E293B]">
                                 <Download className="h-4 w-4" />
                                 Download
                             </button>

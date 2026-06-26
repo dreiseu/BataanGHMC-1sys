@@ -6,6 +6,7 @@ use App\Models\AuthUser;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Exception;
+use SoapClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +18,6 @@ class SoapUserProvider implements UserProvider
         $data = Session::get('soap_user_data');
         if ($data && ($data['bioid'] ?? null) == $identifier) {
             // Always pull fresh role and permissions from the DB
-            // so changes take effect without requiring a re-login
             $authority = DB::table('UserAuthority')
                 ->where('BiometricID', $identifier)
                 ->first(['role', 'permissions']);
@@ -57,104 +57,93 @@ class SoapUserProvider implements UserProvider
             return null;
         }
 
-        // Fast fail: password must equal the bioid (temporary rule)
-        if ($password !== $bioid) {
-            Log::info('HRIS Auth: Invalid credentials for bioid=' . $bioid);
-            return null;
-        }
-
         try {
-            // Query HRIS to check if the employee exists and is active.
-            $employee = DB::connection('hris')
-                ->table('tblEmployee')
-                ->where('bioID', $bioid)
-                ->where('isActive', 1)
-                ->first();
+            // Retrieve SOAP config from Laravel environment/config
+            $soapAddress = env('SOAP_ADDRESS_1APP');
+            $appCode = env('SOAP_CODE_1APP');
 
-            if (!$employee) {
-                Log::info('HRIS Auth: Biometric ID not found or inactive: ' . $bioid);
-                return null;
-            }
-
-            // Build employee name
-            $firstName     = trim($employee->FirstName ?? '');
-            $middle        = trim($employee->Middle ?? '');
-            $lastName      = trim($employee->LastName ?? '');
-            $nameExt       = trim($employee->NameExt ?? '');
-            $middleInitial = $middle ? strtoupper(substr($middle, 0, 1)) . '.' : '';
-            $employeeName  = trim(implode(' ', array_filter([$firstName, $middleInitial, $lastName, $nameExt])));
-
-            if (!$employeeName) {
-                $employeeName = 'Unknown User';
-            }
-
-            $sectionId   = $employee->sectionID ?? '';
-            $positionId  = $employee->posID ?? '';
-            $sectionName = '';
-            $divisionId  = '';
-            $positionName = '';
-            $avatarDataUri = null;
-
-            // Lookup Section Name and Division
-            if (!empty($sectionId)) {
-                $section = DB::connection('hris')
-                    ->table('tblSection')
-                    ->where('sectionID', $sectionId)
-                    ->first();
-                if ($section) {
-                    $sectionName = $section->sectionName ?? '';
-                    $divisionId  = $section->division ?? '';
-                }
-            }
-
-            // Lookup Position Name
-            if (!empty($positionId)) {
-                $pos = DB::connection('hris')
-                    ->table('tblPosition')
-                    ->where('posID', $positionId)
-                    ->first();
-                if ($pos) {
-                    $positionName = $pos->posName ?? '';
-                }
-            }
-
-            // Photo as base64 data URI
-            if (!empty($employee->photo)) {
-                $avatarDataUri = 'data:image/png;base64,' . base64_encode($employee->photo);
-            }
-
-            $attributes = [
-                'id'            => $bioid,
-                'bioid'         => $bioid,
-                'password'      => $password,
-                'name'          => $employeeName,
-                'FullName'      => $employeeName,
-                'Section'       => $sectionId,
-                'Division'      => $divisionId,
-                'Position'      => $positionId,
-                'SectionName'   => $sectionName,
-                'PositionName'  => $positionName,
-                'UserPrivilege' => 0,
-                'avatar'        => $avatarDataUri,
+            $param = [
+                "appCode"       => $appCode,
+                "bioUserName"   => htmlspecialchars($bioid),
+                "password"      => htmlspecialchars($password)
             ];
 
-            $authorityData = $this->upsertUserAuthority($bioid, $attributes);
-            $attributes['UserPrivilege'] = $authorityData['UserPrivilege'];
-            $attributes['role'] = $authorityData['role'];
-            $attributes['permissions'] = $authorityData['permissions'];
+            // 1. Authenticate via SOAP
+            $soap = new SoapClient($soapAddress);
+            $result = $soap->LogIn($param)->LogInResult;
+            $userdata = (array) $result;
 
-            Session::put('soap_user_data', $attributes);
+            if (isset($userdata['Code']) && ($userdata['Code'] == 100 || $userdata['Code'] == 103)) {
+                
+                $account = $result->Account ?? null;
+                if (!$account) {
+                    Log::error('HRIS Auth: Missing Account data from SOAP for bioid=' . $bioid);
+                    return null;
+                }
 
-            Log::info('HRIS Auth: Login successful for bioid=' . $bioid);
+                $sectionName = $account->SectionName ?? '';
 
-            return new AuthUser($attributes);
+                // 2. Custom Authorization Check
+                if ($sectionName !== "Integrated Management Information System Section" && 
+                    $sectionName !== "Human Resource Management Section") {
+                    
+                    // Check tblModulesUserAccess if not in allowed sections
+                    $hasAccess = DB::table('tblModulesUserAccess')
+                        ->where('BiometricID', $bioid)
+                        ->exists();
+
+                    if (!$hasAccess) {
+                        Log::info('HRIS Auth: User lacks required section/module permissions: ' . $bioid);
+                        return null; // Deny login
+                    }
+                }
+
+                // 3. Map User Data from SOAP Response
+                $employeeName = $account->FullName ?? 'Unknown User';
+                
+                $attributes = [
+                    'id'            => $bioid,
+                    'bioid'         => $bioid,
+                    'password'      => $password, // Be cautious storing raw passwords in session
+                    'name'          => $employeeName,
+                    'FullName'      => $employeeName,
+                    'Section'       => $account->Section ?? '',
+                    'Division'      => $account->Division ?? '',
+                    'Position'      => $account->Position ?? '',
+                    'SectionName'   => $sectionName,
+                    'PositionName'  => $account->PositionName ?? '',
+                    'UserPrivilege' => 0,
+                    'avatar'        => null, 
+                ];
+
+                // Note: If you still need the Base64 photo, you can do a quick lookup to the HRIS DB here.
+                $employeePhoto = DB::connection('hris')->table('tblEmployee')->where('bioID', $bioid)->value('photo');
+                if ($employeePhoto) {
+                    $attributes['avatar'] = 'data:image/png;base64,' . base64_encode($employeePhoto);
+                }
+
+                // 4. Sync Database and Initialize Session
+                $authorityData = $this->upsertUserAuthority($bioid, $attributes);
+                $attributes['UserPrivilege'] = $authorityData['UserPrivilege'];
+                $attributes['role']          = $authorityData['role'];
+                $attributes['permissions']   = $authorityData['permissions'];
+
+                Session::put('soap_user_data', $attributes);
+
+                Log::info('HRIS Auth: Login successful via SOAP for bioid=' . $bioid);
+
+                return new AuthUser($attributes);
+            }
+
+            Log::info('HRIS Auth: Invalid credentials via SOAP for bioid=' . $bioid);
+            return null;
 
         } catch (Exception $e) {
-            Log::error('HRIS Auth Error: ' . $e->getMessage());
+            Log::error('HRIS Auth Error (SOAP): ' . $e->getMessage());
         }
 
         return null;
-    }
+    }    
 
     /**
      * Upsert the UserAuthority record in the local database.
@@ -162,7 +151,6 @@ class SoapUserProvider implements UserProvider
     private function upsertUserAuthority(string $bioid, array $data): array
     {
         $existing = DB::table('UserAuthority')->where('BiometricID', $bioid)->first();
-
         $now = now();
 
         $payload = [
@@ -207,11 +195,7 @@ class SoapUserProvider implements UserProvider
      */
     public function validateCredentials(Authenticatable $user, array $credentials)
     {
-        $bioid    = $credentials['bioid'] ?? null;
-        $password = $credentials['password'] ?? null;
-
-        // Password must equal the bioid (temporary rule)
-        return $bioid && $password && $password === $bioid;
+        return true; 
     }
 
     public function rehashPasswordIfRequired(Authenticatable $user, array $credentials, bool $force = false)

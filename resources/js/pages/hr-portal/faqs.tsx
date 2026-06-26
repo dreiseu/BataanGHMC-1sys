@@ -42,9 +42,9 @@ export default function Faqs() {
                         <AccordionItem
                             key={faq.question}
                             value={`item-${index}`}
-                            className="px-6 border-b last:border-0 hover:bg-[#5B0FBE]/5 transition-colors"
+                            className="px-6 border-b last:border-0 hover:bg-[#1E293B]/5 transition-colors"
                         >
-                            <AccordionTrigger className="py-5 text-left font-semibold text-foreground hover:text-[#5B0FBE] hover:no-underline transition-colors">
+                            <AccordionTrigger className="py-5 text-left font-semibold text-foreground hover:text-[#1E293B] hover:no-underline transition-colors">
                                 {faq.question}
                             </AccordionTrigger>
 

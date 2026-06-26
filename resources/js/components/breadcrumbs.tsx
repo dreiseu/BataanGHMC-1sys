@@ -19,7 +19,7 @@ export function Breadcrumbs({
     return (
         <>
             {breadcrumbs.length > 0 && (
-                <Breadcrumb className="font-mono uppercase tracking-widest text-[10px] sm:text-xs">
+                <Breadcrumb className="text-[10px] sm:text-xs" style={{ fontFamily: "'Poppins', sans-serif" }}>
                     <BreadcrumbList>
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
@@ -28,12 +28,12 @@ export function Breadcrumbs({
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
                                         {isLast ? (
-                                            <BreadcrumbPage className="font-bold text-foreground">
+                                            <BreadcrumbPage className="text-foreground uppercase">
                                                 {item.title}
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link 
+                                                <Link
                                                     href={item.href}
                                                     className="font-medium text-muted-foreground hover:text-[#00D4FF] transition-colors"
                                                 >

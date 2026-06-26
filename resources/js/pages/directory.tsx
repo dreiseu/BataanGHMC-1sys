@@ -1,28 +1,8 @@
-import ModulePageHeader from '@/components/module-page-header';
 import LineWaves from '@/components/ui/linewaves';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Search, Phone, Copy } from 'lucide-react';
+import { Search, Phone, Copy, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
 import {
     Select,
     SelectContent,
@@ -31,6 +11,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+
+import dohLogoUrl from '../../images/DOH.png';
+import bghmcLogoUrl from '../../images/BGHMC.png';
+import bagongPilipinasLogoUrl from '../../images/Bagong_Pilipinas.png';
 
 type DirectoryEntry = {
     id: number;
@@ -46,52 +31,6 @@ type Props = {
 };
 
 export default function Directory({ entries }: Props) {
-    const { auth } = usePage().props as unknown as {
-        auth: {
-            user: {
-                role: string;
-            };
-        };
-    };
-
-    const isAdmin = auth?.user?.role === 'admin';
-
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [form, setForm] = useState({
-        department: '',
-        local_no: '',
-        section: '',
-        sort_order: 0,
-    });
-
-    const [editingEntry, setEditingEntry] = useState<DirectoryEntry | null>(null);
-
-    function openEditDialog(entry: DirectoryEntry) {
-        setEditingEntry(entry);
-
-        setForm({
-            department: entry.department,
-            local_no: entry.local_no,
-            section: entry.section,
-            sort_order: entry.sort_order,
-        });
-
-        setShowAddForm(true);
-    }
-
-    function resetDialog() {
-        setEditingEntry(null);
-        setErrors({});
-        setForm({
-            department: '',
-            local_no: '',
-            section: 'BataanGHMC',
-            sort_order: 0,
-        });
-    }
-
-    const [entryToDelete, setEntryToDelete] = useState<DirectoryEntry | null>(null);
-
     const [search, setSearch] = useState('');
 
     const [sectionFilter, setSectionFilter] = useState('all');
@@ -117,25 +56,47 @@ export default function Directory({ entries }: Props) {
         });
     }, [search, sectionFilter, entries]);
 
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const bataanDirectory = useMemo(() => filteredDirectory.filter(item => item.section === 'BataanGHMC'), [filteredDirectory]);
+    const bucasDirectory = useMemo(() => filteredDirectory.filter(item => item.section === 'BUCAS'), [filteredDirectory]);
 
-    const [isSaving, setIsSaving] = useState(false);
+    const chunkBataan = useMemo(() => {
+        if (bataanDirectory.length === 0) return [];
+        const size = Math.ceil(bataanDirectory.length / 3);
+        return [
+            bataanDirectory.slice(0, size),
+            bataanDirectory.slice(size, size * 2),
+            bataanDirectory.slice(size * 2)
+        ];
+    }, [bataanDirectory]);
 
-    const [isDeleting, setIsDeleting] = useState(false);
+    const chunkBucas = useMemo(() => {
+        if (bucasDirectory.length === 0) return [];
+        const size = Math.ceil(bucasDirectory.length / 3);
+        return [
+            bucasDirectory.slice(0, size),
+            bucasDirectory.slice(size, size * 2),
+            bucasDirectory.slice(size * 2)
+        ];
+    }, [bucasDirectory]);
 
+    const currentDate = useMemo(() => {
+        return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }, []);
+
+    const currentYear = new Date().getFullYear();
 
     return (
         <>
             <Head title="Directory" />
 
             <div className="p-6 mx-auto w-full max-w-7xl">
-                {/* Search Hero Banner */}
-                <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
+                {/* Search Hero Banner (Hidden on Print) */}
+                <section className="print:hidden relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
                     <div className="absolute inset-0 z-0">
                         <LineWaves />
                     </div>
                     <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#5B0FBE] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#1E293B] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
 
                     <div className="relative z-10 w-full max-w-3xl">
                         <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm">
@@ -174,295 +135,168 @@ export default function Directory({ entries }: Props) {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            {/* 
+                            <Button
+                                onClick={() => window.print()}
+                                className="w-full sm:w-auto h-[50px] rounded-2xl bg-[#00D4FF] hover:bg-[#00D4FF]/80 text-[#0F172A] font-bold px-6 shadow-[0_0_15px_rgba(0,212,255,0.3)] transition-all hover:scale-105"
+                            >
+                                <Printer className="w-5 h-5 mr-2" />
+                                Print
+                            </Button>
+                            */}
                         </div>
                     </div>
                 </section>
 
-                <div className="mt-8 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="print:hidden mt-8 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="text-sm font-semibold text-muted-foreground bg-muted/50 px-4 py-2 rounded-xl inline-block">
                         Showing <span className="text-foreground">{filteredDirectory.length}</span> of {entries.length} entries
                     </div>
+                </div>
 
-                    {isAdmin && (
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => setShowAddForm(true)}
-                                className="w-full rounded-xl bg-[#5B0FBE] hover:bg-[#00D4FF] transition-colors px-5 py-2.5 text-sm font-semibold text-white sm:w-auto shadow-sm"
-                            >
-                                Add Directory Entry
-                            </button>
-                            <Dialog
-                                open={showAddForm}
-                                onOpenChange={(open) => {
-                                    setShowAddForm(open);
+                {/* The New PDF-Like Document View (Replacing the old table) */}
+                <div className="overflow-hidden rounded-2xl border bg-white shadow-xl print:shadow-none print:border-none print:p-0 print:m-0 font-sans p-6 sm:p-10">
+                    {/* Header */}
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <div className="flex items-center justify-between w-full mb-4 px-2 sm:px-8">
+                            <div className="flex items-center gap-2 sm:gap-4 w-1/4">
+                                <img src={dohLogoUrl} alt="DOH" className="h-16 sm:h-24 object-contain" />
+                                <img src={bghmcLogoUrl} alt="BGHMC" className="h-16 sm:h-24 object-contain" />
+                            </div>
 
-                                    if (!open) {
-                                        resetDialog();
-                                    }
-                                }}
-                            >
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>
-                                            {editingEntry ? 'Edit Directory Entry' : 'Add Directory Entry'}
-                                        </DialogTitle>
-                                        <DialogDescription>
-                                            Add a new department, ward, or office local number.
-                                        </DialogDescription>
-                                    </DialogHeader>
+                            <div className="text-center text-black flex-1">
+                                <h1 className="font-bold text-sm sm:text-xl uppercase leading-tight tracking-tight whitespace-nowrap">
+                                    Bataan General Hospital and Medical Center
+                                </h1>
+                                <p className="text-xs sm:text-sm mt-0.5">Balanga City, Bataan</p>
+                                <p className="text-[10px] sm:text-xs mt-0.5 font-semibold">ISO-QMS 9001:2015 Certified</p>
+                            </div>
 
-                                    <div className="grid gap-4 py-2">
-                                        <div className="grid gap-2">
-                                            <label className="text-sm font-medium">
-                                                Department / Ward / Office
-                                            </label>
+                            <div className="flex justify-end w-1/4">
+                                <img src={bagongPilipinasLogoUrl} alt="Bagong Pilipinas" className="h-16 sm:h-24 object-contain" />
+                            </div>
+                        </div>
 
-                                            <Input
-                                                value={form.department}
-                                                onChange={(e) =>
-                                                    setForm({ ...form, department: e.target.value })
-                                                }
-                                            />
+                        <div className="w-full h-[3px] sm:h-1 bg-black my-2 sm:my-4"></div>
 
-                                            {errors.department && (
-                                                <p className="text-sm text-destructive">
-                                                    {errors.department}
-                                                </p>
-                                            )}
-                                        </div>
+                        <h2 className="text-lg sm:text-3xl font-black uppercase tracking-tight mb-2 text-black">BGHMC Telephone Directory {currentYear}</h2>
 
-                                        <div className="grid gap-2">
-                                            <label className="text-sm font-medium">
-                                                Local No.
-                                            </label>
+                        <div className="flex justify-between w-full text-[10px] sm:text-[11px] font-medium italic mt-2 text-black">
+                            <span>Updated as of: {currentDate}</span>
+                            <span>**Created by: IMISS {currentYear}</span>
+                        </div>
+                    </div>
 
-                                            <Input
-                                                value={form.local_no}
-                                                onChange={(e) =>
-                                                    setForm({
-                                                        ...form,
-                                                        local_no: e.target.value
-                                                    })
-                                                }
-                                            />
-
-                                            {errors.local_no && (
-                                                <p className="text-sm text-destructive">
-                                                    {errors.local_no}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="grid gap-2">
-                                            <label className="text-sm font-medium">
-                                                Section
-                                            </label>
-
-                                            <Select
-                                                value={form.section}
-                                                onValueChange={(value) =>
-                                                    setForm({
-                                                        ...form,
-                                                        section: value,
-                                                    })
-                                                }
+                    {/* BataanGHMC 3-Column Grid */}
+                    {chunkBataan.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-4 items-start mb-6">
+                            {chunkBataan.map((col, i) => (
+                                <table key={i} className="w-full border-[2px] border-black text-[10px] sm:text-xs font-sans bg-white text-black">
+                                    <thead>
+                                        <tr className="border-b-[2px] border-black">
+                                            <th 
+                                                className="border-r-[2px] border-black p-1 sm:p-1.5 text-center font-bold bg-[#DDEBF7] text-[#002060] w-2/3"
+                                                style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                                             >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select section" />
-                                                </SelectTrigger>
+                                                Department/Ward/Office
+                                            </th>
+                                            <th 
+                                                className="p-1 sm:p-1.5 text-center font-bold whitespace-nowrap bg-[#DDEBF7] text-[#002060] w-1/3"
+                                                style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                                            >
+                                                Local No.
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {col.map(item => (
+                                            <tr 
+                                                key={item.id} 
+                                                className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent" 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(item.local_no);
+                                                    toast.success('Local number copied.');
+                                                }}
+                                            >
+                                                <td className="border-r-[2px] border-black p-1 sm:p-1.5 font-semibold uppercase leading-tight text-[9px] sm:text-[11px] break-words">
+                                                    {item.department}
+                                                </td>
+                                                <td className="p-1 sm:p-1.5 text-center font-bold text-[10px] sm:text-[12px] group-hover:text-blue-600 print:group-hover:text-black transition-colors">
+                                                    {item.local_no}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ))}
+                        </div>
+                    )}
 
-                                                <SelectContent>
-                                                    <SelectItem value="BataanGHMC">
-                                                        BataanGHMC
-                                                    </SelectItem>
+                    {/* BUCAS 3-Column Grid */}
+                    {chunkBucas.length > 0 && (
+                        <div className="mt-8 mb-6">
+                            <div className="w-full border-t-[2px] border-dashed border-black mb-4"></div>
+                            <div className="text-center mb-4 text-black">
+                                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight">BUCAS CENTER</h3>
+                                <p className="text-[11px] sm:text-sm font-bold italic">Bagong Urgent Care and Ambulatory Services</p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-4 items-start">
+                                {chunkBucas.map((col, i) => (
+                                    <table key={i} className="w-full border-[2px] border-black text-[10px] sm:text-xs font-sans bg-white text-black">
+                                        <thead>
+                                            <tr className="border-b-[2px] border-black">
+                                                <th 
+                                                    className="border-r-[2px] border-black p-1 sm:p-1.5 text-center font-bold bg-[#DDEBF7] text-[#002060] w-2/3"
+                                                    style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                                                >
+                                                    Department/Ward/Office
+                                                </th>
+                                                <th 
+                                                    className="p-1 sm:p-1.5 text-center font-bold whitespace-nowrap bg-[#DDEBF7] text-[#002060] w-1/3"
+                                                    style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                                                >
+                                                    Local No.
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {col.map(item => (
+                                                <tr 
+                                                    key={item.id} 
+                                                    className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent" 
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(item.local_no);
+                                                        toast.success('Local number copied.');
+                                                    }}
+                                                >
+                                                    <td className="border-r-[2px] border-black p-1 sm:p-1.5 font-semibold uppercase leading-tight text-[9px] sm:text-[11px] break-words">
+                                                        {item.department}
+                                                    </td>
+                                                    <td className="p-1 sm:p-1.5 text-center font-bold text-[10px] sm:text-[12px] group-hover:text-blue-600 print:group-hover:text-black transition-colors">
+                                                        {item.local_no}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                                                    <SelectItem value="BUCAS">
-                                                        BUCAS
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-
-                                            {errors.section && (
-                                                <p className="text-sm text-destructive">
-                                                    {errors.section}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="grid gap-2">
-                                            <label className="text-sm font-medium">
-                                                Sort Order
-                                            </label>
-
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                value={form.sort_order}
-                                                onChange={(e) =>
-                                                    setForm({
-                                                        ...form,
-                                                        sort_order: Number(e.target.value),
-                                                    })
-                                                }
-                                                className="rounded-lg border bg-background px-3 py-2 text-sm"
-                                            />
-
-                                            {errors.sort_order && (
-                                                <p className="text-sm text-destructive">
-                                                    {errors.sort_order}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <DialogFooter>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => {
-                                                setEditingEntry(null);
-                                                resetDialog();
-                                                setShowAddForm(false);
-                                            }}
-                                        >
-                                            Cancel
-                                        </Button>
-
-                                        <Button
-                                            onClick={() => {
-                                                setIsSaving(true);
-
-                                                if (editingEntry) {
-                                                    router.put(`/directory/${editingEntry.id}`, form, {
-                                                        onSuccess: () => {
-                                                            toast.success('Directory entry updated successfully.');
-                                                            setErrors({});
-                                                            resetDialog();
-                                                            setShowAddForm(false);
-                                                        },
-                                                        onError: (errors) => {
-                                                            setErrors(errors);
-                                                            toast.error('Failed to update directory entry.');
-                                                        },
-                                                        onFinish: () => {
-                                                            setIsSaving(false);
-                                                        },
-                                                    });
-
-                                                    return;
-                                                }
-
-                                                router.post('/directory', form, {
-                                                    onSuccess: () => {
-                                                        toast.success('Directory entry added successfully.');
-                                                        setErrors({});
-                                                        resetDialog();
-                                                        setShowAddForm(false);
-                                                    },
-                                                    onError: (errors) => {
-                                                        setErrors(errors);
-                                                        toast.error('Failed to add directory entry.');
-                                                    },
-                                                    onFinish: () => {
-                                                        setIsSaving(false);
-                                                    },
-                                                });
-                                            }}
-                                        >
-                                            {isSaving ? 'Saving...' : 'Save'}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                    {filteredDirectory.length === 0 && (
+                        <div className="text-center py-20 text-muted-foreground font-medium">
+                            No directory records found matching your search.
                         </div>
                     )}
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left text-muted-foreground uppercase tracking-wider text-[11px] font-bold">
-                            <tr>
-                                <th className="px-5 py-4">
-                                    Department / Ward / Office
-                                </th>
-                                <th className="px-5 py-4 text-center">
-                                    Local No.
-                                </th>
-                                <th className="px-5 py-4 text-center">
-                                    Section
-                                </th>
-                                {isAdmin && (
-                                    <th className="px-5 py-4 text-center">
-                                        Actions
-                                    </th>
-                                )}
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {filteredDirectory.map((item, index) => (
-                                <tr
-                                    key={`${item.department}-${item.local_no}-${index}`}
-                                    className="border-t transition-colors hover:bg-[#5B0FBE]/5"
-                                >
-                                    <td className="px-5 py-4 font-medium text-foreground">
-                                        {item.department}
-                                    </td>
-                                    <td className="px-5 py-4 text-center">
-                                        <button
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(item.local_no);
-                                                toast.success('Local number copied.');
-                                            }}
-                                            className="group/copy inline-flex items-center justify-center gap-1.5 font-bold text-foreground hover:text-[#00D4FF] transition-colors rounded-lg px-2 py-1 hover:bg-[#00D4FF]/10"
-                                        >
-                                            {item.local_no}
-                                            <Copy className="h-3.5 w-3.5 opacity-0 group-hover/copy:opacity-100 transition-opacity" />
-                                        </button>
-                                    </td>
-                                    <td className="px-5 py-4 text-muted-foreground text-center font-medium">
-                                        {item.section}
-                                    </td>
-                                    {isAdmin && (
-                                        <td className="px-5 py-4 text-center">
-                                            <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => openEditDialog(item)}
-                                                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted transition-colors"
-                                                >
-                                                    Edit
-                                                </button>
-
-                                                <button
-                                                    onClick={() => setEntryToDelete(item)}
-                                                    className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-
-                            {filteredDirectory.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={isAdmin ? 4 : 3}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No directory records found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="print:hidden mt-6 grid gap-4 sm:grid-cols-2">
                     <div className="group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#00D4FF]/40">
                         <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
                         <div className="relative z-10">
-                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                 <Phone className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                             </div>
                             <h3 className="font-bold text-lg text-foreground">BataanGHMC Trunk Lines</h3>
@@ -477,7 +311,7 @@ export default function Directory({ entries }: Props) {
                     <div className="group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#00D4FF]/40">
                         <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
                         <div className="relative z-10">
-                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                 <Phone className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                             </div>
                             <h3 className="font-bold text-lg text-foreground">BUCAS Trunk Lines</h3>
@@ -488,53 +322,6 @@ export default function Directory({ entries }: Props) {
                     </div>
                 </div>
             </div>
-
-            <AlertDialog
-                open={!!entryToDelete}
-                onOpenChange={(open) => {
-                    if (!open) setEntryToDelete(null);
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Directory Entry?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete{' '}
-                            <strong>{entryToDelete?.department}</strong>. This action
-                            cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-
-                        <AlertDialogAction
-                            disabled={isDeleting}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => {
-                                if (!entryToDelete) return;
-
-                                setIsDeleting(true);
-
-                                router.delete(`/directory/${entryToDelete.id}`, {
-                                    onSuccess: () => {
-                                        toast.success('Directory entry deleted successfully.');
-                                        setEntryToDelete(null);
-                                    },
-                                    onError: () => {
-                                        toast.error('Failed to delete directory entry.');
-                                    },
-                                    onFinish: () => {
-                                        setIsDeleting(false);
-                                    },
-                                });
-                            }}
-                        >
-                            {isDeleting ? 'Deleting...' : 'Delete'}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </>
     );
 }

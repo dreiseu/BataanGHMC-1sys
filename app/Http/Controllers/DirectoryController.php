@@ -19,6 +19,18 @@ class DirectoryController extends Controller
         ]);
     }
 
+    public function manage()
+    {
+        $entries = DirectoryEntry::orderBy('section')
+            ->orderBy('sort_order')
+            ->orderBy('department')
+            ->get();
+
+        return Inertia::render('utilities/directories', [
+            'entries' => $entries,
+        ]);
+    }
+
     public function store()
     {
         request()->validate([

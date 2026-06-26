@@ -101,9 +101,15 @@ export function NavMain({
                                                                 asChild
                                                                 isActive={isHrefActive(child.href)}
                                                             >
-                                                                <Link href={child.href} prefetch>
-                                                                    <span>{child.title}</span>
-                                                                </Link>
+                                                                {String(child.href).startsWith('http://') || String(child.href).startsWith('https://') ? (
+                                                                    <a href={child.href} target="_blank" rel="noopener noreferrer">
+                                                                        <span>{child.title}</span>
+                                                                    </a>
+                                                                ) : (
+                                                                    <Link href={child.href} prefetch>
+                                                                        <span>{child.title}</span>
+                                                                    </Link>
+                                                                )}
                                                             </SidebarMenuSubButton>
                                                         </SidebarMenuSubItem>
                                                     ))}
@@ -120,10 +126,17 @@ export function NavMain({
                                         className="h-9 rounded-lg px-3 font-medium text-sidebar-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm"
                                         tooltip={{ children: item.title }}
                                     >
-                                        <Link href={item.href} prefetch>
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                        </Link>
+                                        {String(item.href).startsWith('http://') || String(item.href).startsWith('https://') ? (
+                                            <a href={item.href} target="_blank" rel="noopener noreferrer">
+                                                {item.icon && <item.icon />}
+                                                <span>{item.title}</span>
+                                            </a>
+                                        ) : (
+                                            <Link href={item.href} prefetch>
+                                                {item.icon && <item.icon />}
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        )}
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             )

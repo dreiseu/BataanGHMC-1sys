@@ -9,13 +9,11 @@
 
 @import '../js/pages/auth/login.css';
 
-@custom-variant dark (&:is(.dark *));
-
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
-        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-        'Noto Color Emoji';
+        'Poppins', 'Inter', 'Instrument Sans', 'Segoe UI', ui-sans-serif,
+        system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -72,7 +70,7 @@
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: #5B0FBE;
+    --primary: #1E293B;
     --primary-foreground: #ffffff;
     --secondary: oklch(0.955 0 0);
     --secondary-foreground: oklch(0.205 0 0);
@@ -93,46 +91,11 @@
     --radius: 0.625rem;
     --sidebar: oklch(0.21 0 0);
     --sidebar-foreground: oklch(0.96 0 0);
-    --sidebar-primary: #5B0FBE;
+    --sidebar-primary: #1E293B;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: oklch(0.3 0 0);
     --sidebar-accent-foreground: oklch(0.98 0 0);
     --sidebar-border: oklch(0.28 0 0);
-    --sidebar-ring: #00D4FF;
-}
-
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: #00D4FF;
-    --primary-foreground: #260554;
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: #00D4FF;
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: #00D4FF;
-    --sidebar-primary-foreground: #260554;
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
     --sidebar-ring: #00D4FF;
 }
 
@@ -143,11 +106,6 @@
 
     body {
         @apply bg-background text-foreground;
-    }
-
-    ::selection {
-        background-color: #5B0FBE;
-        color: #ffffff;
     }
 }
 
@@ -178,14 +136,19 @@
         position: relative;
         width: 435px;
         height: 100%;
-        background: radial-gradient(circle at top, #5B0FBE 0%, #00D4FF 60%, #00D4FF 90%);
-        background-size: 200% auto;
+        background: radial-gradient(circle at top,
+                #1E293B 0%,
+                #00D4FF 80%,
+                #00D4FF 90%);
         background-position: right center;
+        background-size: 200% auto;
         clip-path: polygon(0 0, 100% 0, calc(100% - 90px) 100%, 0% 100%);
         box-shadow:
             0 6px 12px rgba(0, 0, 0, 0.25),
             0 2px 4px rgba(0, 0, 0, 0.15);
-        transition: width 0.3s ease, clip-path 0.3s ease;
+        transition:
+            width 0.3s ease,
+            clip-path 0.3s ease;
     }
 
     .main-system-left-content {
@@ -286,14 +249,14 @@
 
     .emr-sidebar-brand {
         background:
-            linear-gradient(135deg, #5B0FBE 0%, #5B0FBE 68%, transparent 68%),
+            linear-gradient(135deg, #1E293B 0%, #1E293B 68%, transparent 68%),
             linear-gradient(135deg, transparent 0 72%, #3a3a3a 72% 78%, transparent 78%),
             linear-gradient(135deg, transparent 0 78%, #00D4FF 78% 84%, transparent 84%);
     }
 
     .emr-scrollbar {
         scrollbar-width: thin;
-        scrollbar-color: rgba(91, 15, 190, 0.35) transparent;
+        scrollbar-color: rgba(30, 41, 59, 0.35) transparent;
     }
 
     .emr-scrollbar::-webkit-scrollbar {
@@ -306,12 +269,12 @@
     }
 
     .emr-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(91, 15, 190, 0.35);
+        background: rgba(30, 41, 59, 0.35);
         border-radius: 999px;
     }
 
     .emr-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(91, 15, 190, 0.6);
+        background: rgba(30, 41, 59, 0.6);
     }
 
     .emr-animated-btn {
@@ -322,9 +285,9 @@
 
     .emr-animated-btn:hover:not(:disabled) {
         background-image: linear-gradient(135deg,
-                #5B0FBE,
+                #1E293B,
                 #00D4FF,
-                #5B0FBE) !important;
+                #1E293B) !important;
         background-size: 200% 200% !important;
         animation: moveGradient 3s ease infinite !important;
     }
@@ -341,30 +304,6 @@
 
         100% {
             background-position: 0% 50%;
-        }
-    }
-
-    @keyframes invalidShake {
-
-        10%,
-        90% {
-            transform: translateX(-1px);
-        }
-
-        20%,
-        80% {
-            transform: translateX(2px);
-        }
-
-        30%,
-        50%,
-        70% {
-            transform: translateX(-4px);
-        }
-
-        40%,
-        60% {
-            transform: translateX(4px);
         }
     }
 }

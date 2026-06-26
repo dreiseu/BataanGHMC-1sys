@@ -118,7 +118,7 @@ export default function Dashboard() {
                 {/* Main Content Column */}
                 <div className="flex-1 flex flex-col gap-6">
                     {/* Hero Section */}
-                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#260554] p-8 shadow-lg min-h-[220px] flex items-center">
+                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0F172A] p-8 shadow-lg min-h-[220px] flex items-center">
                         {/* LineWaves Background */}
                         <div className="absolute inset-0 z-0 opacity-40 mix-blend-screen pointer-events-none">
                             <LineWaves
@@ -128,14 +128,14 @@ export default function Dashboard() {
                                 warpIntensity={0.8}
                                 edgeFadeWidth={0.2}
                                 brightness={0.3}
-                                color1="#5B0FBE"
+                                color1="#1E293B"
                                 color2="#00D4FF"
-                                color3="#5B0FBE"
+                                color3="#1E293B"
                                 enableMouseInteraction={true}
                                 mouseInfluence={1.5}
                             />
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-[#5B0FBE] via-[#5B0FBE]/80 to-transparent z-0"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#1E293B] via-[#1E293B]/80 to-transparent z-0"></div>
 
                         <div className="relative z-10 w-full">
                             <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm">
@@ -175,10 +175,10 @@ export default function Dashboard() {
                     <section>
                         <div className="mb-5 flex items-center justify-between">
                             <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
-                                <Pin className="h-5 w-5 text-[#5B0FBE]" />
+                                <Pin className="h-5 w-5 text-[#1E293B]" />
                                 Pinned Modules
                             </h2>
-                            <Button variant="ghost" size="sm" onClick={openPinModal} className="text-muted-foreground hover:text-[#5B0FBE] cursor-pointer">
+                            <Button variant="ghost" size="sm" onClick={openPinModal} className="text-muted-foreground hover:text-[#1E293B] cursor-pointer">
                                 <Plus className="h-4 w-4 mr-1" /> Edit Pins
                             </Button>
                         </div>
@@ -196,7 +196,7 @@ export default function Dashboard() {
                                             <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                                             <div className="relative z-10">
-                                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                                     <Icon className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
                                                 </div>
 
@@ -221,7 +221,7 @@ export default function Dashboard() {
                                 <p className="text-muted-foreground mt-1 max-w-sm">
                                     Pin the modules you use most frequently for quick access right here.
                                 </p>
-                                <Button onClick={openPinModal} className="mt-6 rounded-xl bg-[#5B0FBE] hover:bg-[#5B0FBE]/90">
+                                <Button onClick={openPinModal} className="mt-6 rounded-xl bg-[#1E293B] hover:bg-[#1E293B]/90">
                                     <Plus className="h-4 w-4 mr-2" /> Pin Your First Module
                                 </Button>
                             </div>
@@ -245,8 +245,8 @@ export default function Dashboard() {
                             ].map((link, i) => {
                                 const LinkIcon = link.icon;
                                 return (
-                                    <a key={i} href="#" className="group flex items-center gap-3 rounded-xl p-3 hover:bg-[#5B0FBE]/5 transition-colors">
-                                        <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-[#5B0FBE]/10 group-hover:text-[#5B0FBE] transition-colors">
+                                    <a key={i} href="#" className="group flex items-center gap-3 rounded-xl p-3 hover:bg-[#1E293B]/5 transition-colors">
+                                        <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-[#1E293B]/10 group-hover:text-[#1E293B] transition-colors">
                                             <LinkIcon className="h-4 w-4" />
                                         </div>
                                         <span className="text-sm font-semibold text-foreground/80 group-hover:text-foreground transition-colors">{link.title}</span>
@@ -309,7 +309,7 @@ export default function Dashboard() {
                             Cancel
                         </Button>
                         <Button
-                            className="bg-[#5B0FBE] hover:bg-[#5B0FBE]/90 cursor-pointer"
+                            className="bg-[#1E293B] hover:bg-[#1E293B]/90 cursor-pointer"
                             onClick={handleSavePins}
                             disabled={processing}
                         >

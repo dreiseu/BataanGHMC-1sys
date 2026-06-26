@@ -13,6 +13,7 @@ class ImissTicket extends Model
         'description',
         'location',
         'local_number',
+        'pc_number',
         'priority',
         'attachments',
         'status',

@@ -5,6 +5,8 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\ImissController;
+use App\Http\Controllers\SystemController;
+use App\Http\Controllers\ImissRequestTypeController;
 
 Route::get('/migrate-remarks', function() {
     \Illuminate\Support\Facades\Schema::table('imiss_tickets', function (\Illuminate\Database\Schema\Blueprint $table) {
@@ -78,6 +80,35 @@ Route::get('/migrate-imiss-v2', function() {
     return 'done';
 });
 
+Route::get('/migrate-imiss-request-types', function() {
+    if (!\Illuminate\Support\Facades\Schema::hasTable('imiss_request_types')) {
+        \Illuminate\Support\Facades\Schema::create('imiss_request_types', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->string('value')->unique();
+            $table->string('label');
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        // Seed initial data
+        $initialTypes = [
+            ['value' => 'hardware', 'label' => 'Hardware Repair / Issue'],
+            ['value' => 'network', 'label' => 'Network / Internet Connectivity'],
+            ['value' => 'software', 'label' => 'Software Installation / Error'],
+            ['value' => 'account', 'label' => 'Account Access / Password Reset'],
+            ['value' => 'hims', 'label' => 'HIMS (Reopening / Cancellation)'],
+            ['value' => 'emr', 'label' => 'EMR (Records / Charges)'],
+            ['value' => 'other', 'label' => 'Other Inquiry'],
+        ];
+
+        foreach ($initialTypes as $type) {
+            \App\Models\ImissRequestType::create($type);
+        }
+    }
+    return 'done';
+});
+
 Route::post('/session-end', function () {
     Auth::logout();
     request()->session()->invalidate();
@@ -130,64 +161,57 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/imiss/tickets/{ticket}/correction', [ImissController::class, 'correction'])->name('imiss.ticket.correction');
     Route::post('/imiss/tickets/{ticket}/comments', [ImissController::class, 'storeComment'])->name('imiss.ticket.comments.store');
     
-    Route::get('/notifications', function() {
-        return response()->json(
-            \App\Models\UserNotification::where('bioid', Auth::user()->bio_id ?? Auth::id())
-                ->orderBy('created_at', 'desc')
-                ->take(20)
-                ->get()
-        );
-    });
-    Route::post('/notifications/{notification}/read', function(\App\Models\UserNotification $notification) {
-        if ($notification->bioid == (Auth::user()->bio_id ?? Auth::id())) {
-            $notification->is_read = true;
-            $notification->save();
-        }
-        return back();
-    });
-    Route::post('/notifications/{notification}/unread', function(\App\Models\UserNotification $notification) {
-        if ($notification->bioid == (Auth::user()->bio_id ?? Auth::id())) {
-            $notification->is_read = false;
-            $notification->save();
-        }
-        return back();
-    });
-    Route::delete('/notifications/{notification}', function(\App\Models\UserNotification $notification) {
-        if ($notification->bioid == (Auth::user()->bio_id ?? Auth::id())) {
-            $notification->delete();
-        }
-        return back();
-    });
-    Route::post('/notifications/bulk-read', function(\Illuminate\Http\Request $request) {
-        $ids = $request->input('ids', []);
-        if (is_array($ids) && count($ids) > 0) {
-            \App\Models\UserNotification::whereIn('id', $ids)
-                ->where('bioid', Auth::user()->bio_id ?? Auth::id())
-                ->update(['is_read' => true]);
-        }
-        return back();
-    });
-    Route::post('/notifications/bulk-delete', function(\Illuminate\Http\Request $request) {
-        $ids = $request->input('ids', []);
-        if (is_array($ids) && count($ids) > 0) {
-            \App\Models\UserNotification::whereIn('id', $ids)
-                ->where('bioid', Auth::user()->bio_id ?? Auth::id())
-                ->delete();
-        }
-        return back();
-    });
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
+    Route::post('/notifications', [\App\Http\Controllers\NotificationController::class, 'store']);
+    Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/{notification}/unread', [\App\Http\Controllers\NotificationController::class, 'markAsUnread']);
+    Route::delete('/notifications/{notification}', [\App\Http\Controllers\NotificationController::class, 'destroy']);
+    Route::post('/notifications/bulk-read', [\App\Http\Controllers\NotificationController::class, 'bulkRead']);
+    Route::post('/notifications/bulk-delete', [\App\Http\Controllers\NotificationController::class, 'bulkDelete']);
+    Route::post('/notifications/read-by-ticket', [\App\Http\Controllers\NotificationController::class, 'markTicketAsRead']);
     Route::get('/imiss/admin', [ImissController::class, 'admin'])->name('imiss.admin');
     Route::put('/imiss/admin/tickets/{ticket}/status', [ImissController::class, 'updateStatus'])->name('imiss.admin.ticket.status');
     Route::inertia('/praise', 'praise');
-    Route::inertia('/employees-portal', 'employees-portal');
+    Route::get('/sso-portal', function(\Illuminate\Http\Request $request) {
+        $userData = session('soap_user_data');
+        
+        $systemName = $request->query('system');
+        if ($systemName) {
+            $system = \App\Models\HospitalSystem::where('name', $systemName)->first();
+        } else {
+            $system = \App\Models\HospitalSystem::where('name', "Employee's Portal")->first();
+        }
+
+        $url = $system ? $system->url : 'https://eportalplus.bataanghmc.net/login';
+        
+        if (!str_starts_with($url, 'http')) {
+            $url = 'https://' . $url;
+        }
+
+        return Inertia::render('sso-portal', [
+            'bioid' => $userData['bioid'] ?? '',
+            'password' => $userData['password'] ?? '',
+            'portalUrl' => $url,
+            'systemName' => $system ? $system->name : "Employee's Portal"
+        ]);
+    });
     Route::inertia('/user-guide', 'user-guide');
 
     Route::get('/directory', [DirectoryController::class, 'index']);
-    Route::middleware('admin')->group(function () {
-        Route::post('/directory', [DirectoryController::class, 'store']);
-        Route::put('/directory/{directoryEntry}', [DirectoryController::class, 'update']);
-        Route::delete('/directory/{directoryEntry}', [DirectoryController::class, 'destroy']);
-    });
+    Route::get('/utilities/directories', [DirectoryController::class, 'manage']);
+    Route::post('/directory', [DirectoryController::class, 'store']);
+    Route::put('/directory/{directoryEntry}', [DirectoryController::class, 'update']);
+    Route::delete('/directory/{directoryEntry}', [DirectoryController::class, 'destroy']);
+
+    Route::get('/utilities/systems', [SystemController::class, 'index']);
+    Route::post('/utilities/systems', [SystemController::class, 'store']);
+    Route::put('/utilities/systems/{system}', [SystemController::class, 'update']);
+    Route::delete('/utilities/systems/{system}', [SystemController::class, 'destroy']);
+
+    Route::get('/utilities/imiss-request-types', [ImissRequestTypeController::class, 'index']);
+    Route::post('/utilities/imiss-request-types', [ImissRequestTypeController::class, 'store']);
+    Route::put('/utilities/imiss-request-types/{imissRequestType}', [ImissRequestTypeController::class, 'update']);
+    Route::delete('/utilities/imiss-request-types/{imissRequestType}', [ImissRequestTypeController::class, 'destroy']);
 
     Route::inertia('/cert', 'cert');
     Route::inertia('/qr-pass', 'qr-pass');

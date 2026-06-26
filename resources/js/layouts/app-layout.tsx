@@ -18,7 +18,7 @@ export default function AppLayout({
     const activeBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : (() => {
         const paths = url.split('?')[0].split('/').filter(Boolean);
         if (paths.length === 0) return [{ title: 'Dashboard', href: '/dashboard' }];
-        
+
         return paths.map((path, index) => {
             const href = '/' + paths.slice(0, index + 1).join('/');
             const title = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ');

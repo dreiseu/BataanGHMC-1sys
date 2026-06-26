@@ -125,7 +125,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-                            <Ticket className="h-8 w-8 text-[#5B0FBE]" />
+                            <Ticket className="h-8 w-8 text-[#1E293B]" />
                             IMISS Helpdesk Tickets
                         </h1>
                         <p className="text-muted-foreground mt-1">Temporary dashboard for managing job order requests.</p>
@@ -159,7 +159,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                             <tbody className="divide-y divide-border">
                                 {filteredTickets.length > 0 ? filteredTickets.map((ticket) => (
                                     <tr key={ticket.id} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3 font-bold text-[#5B0FBE]">{ticket.ticket_number}</td>
+                                        <td className="px-4 py-3 font-bold text-[#1E293B]">{ticket.ticket_number}</td>
                                         <td className="px-4 py-3">{ticket.bio_id}</td>
                                         <td className="px-4 py-3 max-w-[200px] truncate">{REQUEST_TYPE_LABELS[ticket.request_type] || ticket.request_type}</td>
                                         <td className="px-4 py-3">
@@ -222,7 +222,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                         e.preventDefault();
                     }}
                 >
-                    <div className="bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-6 text-white relative">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-[#00D4FF] opacity-20 blur-2xl"></div>
                         <DialogHeader>
                             <div className="mb-2 relative z-10">
@@ -289,7 +289,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                                             rel="noreferrer"
                                             className="flex items-center gap-2 p-3 border rounded-xl hover:bg-muted/50 transition-colors"
                                         >
-                                            <ExternalLink className="h-4 w-4 text-[#5B0FBE]" />
+                                            <ExternalLink className="h-4 w-4 text-[#1E293B]" />
                                             <span className="text-sm font-semibold truncate">{path.split('/').pop()}</span>
                                         </a>
                                     ))}
@@ -311,7 +311,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                                             const isSelf = comment.sender_bioid?.toString() === currentUserId?.toString();
                                             return (
                                                 <div key={comment.id} className={`flex flex-col max-w-[85%] ${isSelf ? 'self-end items-end' : 'self-start items-start'}`}>
-                                                    <div className={`p-3 rounded-2xl ${isSelf ? 'bg-[#5B0FBE] text-white rounded-br-sm' : 'bg-background border shadow-sm rounded-bl-sm'}`}>
+                                                    <div className={`p-3 rounded-2xl ${isSelf ? 'bg-[#1E293B] text-white rounded-br-sm' : 'bg-background border shadow-sm rounded-bl-sm'}`}>
                                                         {comment.message && <div>{comment.message}</div>}
                                                         {comment.attachments && comment.attachments.length > 0 && (
                                                             <div className={`mt-1 flex flex-wrap gap-2 ${comment.message ? 'pt-2 border-t border-white/20' : ''}`}>
@@ -351,7 +351,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                                         <div className="flex flex-wrap gap-2">
                                             {commentForm.data.attachments.map((file, idx) => (
                                                 <div key={idx} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded-lg border w-max">
-                                                    <FileIcon className="h-4 w-4 text-[#5B0FBE]" />
+                                                    <FileIcon className="h-4 w-4 text-[#1E293B]" />
                                                     <span className="truncate max-w-[150px] font-medium">{file.name}</span>
                                                     <button onClick={() => {
                                                         const inputElement = document.getElementById('admin-chat-input');
@@ -395,7 +395,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                                                 }}
                                                 accept=".jpg,.jpeg,.png,.pdf"
                                             />
-                                            <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#5B0FBE]">
+                                            <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#1E293B]">
                                                 <Paperclip className="h-4 w-4" />
                                             </Button>
                                         </div>

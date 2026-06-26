@@ -93,12 +93,12 @@ export default function HrPortal() {
                 <div className="flex-1 flex flex-col gap-6">
                     
                     {/* Search Hero Banner */}
-                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#5B0FBE] to-[#260554] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
+                    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
                         <div className="absolute inset-0 z-0">
                             <LineWaves />
                         </div>
                         <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#5B0FBE] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#1E293B] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
 
                         <div className="relative z-10 w-full max-w-2xl">
                             <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm">
@@ -142,7 +142,7 @@ export default function HrPortal() {
                                         <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                         
                                         <div className="relative z-10">
-                                            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#5B0FBE]/10 text-[#5B0FBE] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
+                                            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                                 <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
                                             </div>
 
@@ -178,7 +178,7 @@ export default function HrPortal() {
                             <h2 className="text-lg font-bold tracking-tight">
                                 Announcements
                             </h2>
-                            <div className="h-8 w-8 rounded-full bg-[#5B0FBE]/10 flex items-center justify-center text-[#5B0FBE]">
+                            <div className="h-8 w-8 rounded-full bg-[#1E293B]/10 flex items-center justify-center text-[#1E293B]">
                                 <Bell className="h-4 w-4" />
                             </div>
                         </div>
@@ -210,7 +210,7 @@ export default function HrPortal() {
 
                         <Link
                             href="/hr-portal/announcements"
-                            className="mt-6 flex items-center justify-center gap-1.5 w-full rounded-xl bg-muted/50 p-2.5 text-sm font-semibold text-muted-foreground hover:bg-[#5B0FBE]/10 hover:text-[#5B0FBE] transition-colors"
+                            className="mt-6 flex items-center justify-center gap-1.5 w-full rounded-xl bg-muted/50 p-2.5 text-sm font-semibold text-muted-foreground hover:bg-[#1E293B]/10 hover:text-[#1E293B] transition-colors"
                         >
                             View all updates
                             <ChevronRight className="h-4 w-4" />

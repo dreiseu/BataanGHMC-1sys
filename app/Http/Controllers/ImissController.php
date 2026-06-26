@@ -24,9 +24,26 @@ class ImissController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $requestTypes = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('imiss_request_types')) {
+            $requestTypes = \App\Models\ImissRequestType::where('is_active', true)->get();
+        } else {
+            // Fallback before migration is run
+            $requestTypes = [
+                (object)['value' => 'hardware', 'label' => 'Hardware Repair / Issue'],
+                (object)['value' => 'network', 'label' => 'Network / Internet Connectivity'],
+                (object)['value' => 'software', 'label' => 'Software Installation / Error'],
+                (object)['value' => 'account', 'label' => 'Account Access / Password Reset'],
+                (object)['value' => 'hims', 'label' => 'HIMS (Reopening / Cancellation)'],
+                (object)['value' => 'emr', 'label' => 'EMR (Records / Charges)'],
+                (object)['value' => 'other', 'label' => 'Other Inquiry'],
+            ];
+        }
+
         return Inertia::render('imiss', [
             'systems' => $systems,
             'tickets' => $tickets,
+            'requestTypes' => $requestTypes,
         ]);
     }
 
@@ -36,6 +53,7 @@ class ImissController extends Controller
             'request_type' => 'required|string|max:50',
             'description' => 'required|string',
             'local_number' => 'nullable|string|max:50',
+            'pc_number' => 'nullable|string|max:50',
             'location' => 'required|string|max:100',
             'priority' => 'required|string|max:20',
             'attachments' => 'nullable|array',
@@ -90,6 +108,7 @@ class ImissController extends Controller
             'description' => $validated['description'],
             'location' => $validated['location'],
             'local_number' => $validated['local_number'],
+            'pc_number' => $validated['pc_number'] ?? null,
             'priority' => $validated['priority'],
             'attachments' => count($attachmentPaths) > 0 ? $attachmentPaths : null,
             'status' => 'Ticket Submitted',
@@ -121,7 +140,7 @@ class ImissController extends Controller
     {
         // Ensure user is authorized to cancel this ticket
         $bioId = Auth::user()->bio_id ?? Auth::id();
-        if ($ticket->bio_id == $bioId && $ticket->status !== 'Resolved' && $ticket->status !== 'Accomplished') {
+        if ($ticket->bio_id == $bioId && $ticket->status === 'Ticket Submitted') {
             $ticket->status = 'Cancelled';
             $ticket->save();
         }

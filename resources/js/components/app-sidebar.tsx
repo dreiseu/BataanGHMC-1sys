@@ -1,20 +1,33 @@
 import { useMemo, useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import {
     Activity,
     Award,
     BarChart3,
+    BookA,
+    BookCopy,
     BookOpen,
+    BookUser,
+    Box,
     Building2,
     Contact,
+    Cpu,
+    Drill,
     FileText,
     FolderGit2,
+    FormInput,
+    GitPullRequest,
     HeartPulse,
     IdCard,
     LayoutGrid,
+    Phone,
     QrCode,
+    Scroll,
     Search,
+    Settings,
     ShieldCheck,
     Siren,
+    Stethoscope,
     Users
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -37,76 +50,83 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'HR Portal',
-        href: '/hr-portal',
-        icon: Users,
+        title: 'Systems',
+        href: '#',
+        icon: Box,
+        items: []
     },
+    // {
+    //     title: 'Portals',
+    //     href: '#',
+    //     icon: Users,
+    //     items: [
+    //     ]
+    // },
     {
-        title: 'PETRO',
-        href: '/petro',
-        icon: FileText,
-    },
-    {
-        title: 'PGS',
-        href: '/pgs',
-        icon: BarChart3,
-    },
-    {
-        title: 'COVID-SAT',
-        href: '/covid-sat',
-        icon: ShieldCheck,
-    },
-    {
-        title: 'EFMS',
-        href: '/efms',
-        icon: Building2,
-    },
-    {
-        title: 'IMISS',
-        href: '/imiss',
+        title: 'Services',
+        href: '#',
         icon: HeartPulse,
+        items: [
+            { title: 'BataanGHMC-CERT', href: '/cert' },
+            { title: 'HR Portal', href: '/hr-portal' },
+            { title: 'IMISS', href: '/imiss' },
+            { title: 'PETRO', href: '/petro' },
+            { title: 'QR-PASS', href: '/qr-pass' },
+        ]
     },
     {
-        title: 'PRAISE',
-        href: '/praise',
-        icon: Award,
-    },
-    {
-        title: "Employee's Portal",
-        href: '/employees-portal',
-        icon: IdCard,
-    },
-    {
-        title: 'User Guide',
-        href: '/user-guide',
+        title: 'Resources',
+        href: '#',
         icon: BookOpen,
+        items: [
+            { title: 'Directory', href: '/directory' },
+            { title: 'User Guide', href: '/user-guide' },
+        ]
     },
     {
-        title: 'Directory',
-        href: '/directory',
-        icon: Contact,
-    },
-    {
-        title: 'BataanGHMC-CERT',
-        href: '/cert',
-        icon: Siren,
-    },
-    {
-        title: 'QR-PASS',
-        href: '/qr-pass',
-        icon: QrCode,
-    },
-    {
-        title: 'Health & Wellness / PHU',
-        href: '/health-wellness',
-        icon: Activity,
+        title: 'Utilities',
+        href: '/utilities',
+        icon: Settings,
+        items: [
+            { title: 'Directories', href: '/utilities/directories' },
+            { title: 'IMISS Request Types', href: '/utilities/imiss-request-types' },
+            { title: 'Systems & Portals', href: '/utilities/systems' },
+        ]
     },
 ];
 
 export function AppSidebar() {
+    const { hospital_systems } = usePage().props as any;
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredNavItems = mainNavItems.filter((item) =>
+    const dynamicNavItems = useMemo(() => {
+        const dynamicSystems = (hospital_systems || []).map((system: any) => {
+            const nameLower = system.name.toLowerCase();
+            const isEmployeePortal = nameLower.includes('employee') && nameLower.includes('portal');
+            const is1App = nameLower === '1app' || nameLower.includes('1app');
+            const isIhomp = nameLower === 'ihomp cms' || nameLower.includes('ihomp');
+            const isEfms = nameLower.includes('efms');
+            
+            const isSsoSystem = isEmployeePortal || is1App || isIhomp || isEfms;
+
+            return {
+                title: system.name,
+                href: isSsoSystem ? `/sso-portal?system=${encodeURIComponent(system.name)}` : system.url
+            };
+        });
+
+        return mainNavItems.map(item => {
+            if (item.title === 'Systems') {
+                return {
+                    ...item,
+                    items: dynamicSystems
+                };
+            }
+            return item;
+        });
+    }, [hospital_systems]);
+
+    const filteredNavItems = dynamicNavItems.filter((item) =>
         item.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
