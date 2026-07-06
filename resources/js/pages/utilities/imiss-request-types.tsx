@@ -105,26 +105,26 @@ export default function UtilitiesImissRequestTypes({ requestTypes }: Props) {
         if (totalPages <= 4) {
             return Array.from({ length: totalPages }, (_, i) => i + 1);
         }
-        
+
         let start = Math.max(1, currentPage - 1);
         let end = Math.min(totalPages, start + 2);
-        
+
         if (end - start < 2) {
             start = Math.max(1, end - 2);
         }
-        
+
         const pages: (number | 'ellipsis')[] = [];
         for (let i = start; i <= end; i++) {
             pages.push(i);
         }
-        
+
         if (end < totalPages) {
             if (end < totalPages - 1) {
                 pages.push('ellipsis');
             }
             pages.push(totalPages);
         }
-        
+
         return pages;
     }, [currentPage, totalPages]);
 
@@ -136,7 +136,7 @@ export default function UtilitiesImissRequestTypes({ requestTypes }: Props) {
         <>
             <Head title="Manage IMISS Request Types" />
 
-            <div className="p-6 mx-auto w-full max-w-7xl space-y-8">
+            <div className="p-6 mt-6 mx-auto w-full max-w-7xl space-y-8">
                 {/* Hero Banner */}
                 <section className="relative overflow-hidden rounded-3xl border border-[#00D4FF]/20 bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] p-8 sm:p-10 shadow-lg min-h-[180px] flex flex-col justify-center group">
                     <div className="absolute inset-0 z-0 opacity-30 mix-blend-screen">
@@ -242,13 +242,13 @@ export default function UtilitiesImissRequestTypes({ requestTypes }: Props) {
                             <Pagination className="justify-end w-auto mx-0">
                                 <PaginationContent>
                                     <PaginationItem>
-                                        <PaginationPrevious 
-                                            href="#" 
-                                            onClick={(e) => { e.preventDefault(); setCurrentPage(prev => Math.max(prev - 1, 1)); }} 
-                                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'} 
+                                        <PaginationPrevious
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); setCurrentPage(prev => Math.max(prev - 1, 1)); }}
+                                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                                         />
                                     </PaginationItem>
-                                    
+
                                     {paginationRange.map((item, index) => (
                                         <PaginationItem key={index}>
                                             {item === 'ellipsis' ? (
@@ -266,10 +266,10 @@ export default function UtilitiesImissRequestTypes({ requestTypes }: Props) {
                                     ))}
 
                                     <PaginationItem>
-                                        <PaginationNext 
-                                            href="#" 
-                                            onClick={(e) => { e.preventDefault(); setCurrentPage(prev => Math.min(prev + 1, totalPages)); }} 
-                                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'} 
+                                        <PaginationNext
+                                            href="#"
+                                            onClick={(e) => { e.preventDefault(); setCurrentPage(prev => Math.min(prev + 1, totalPages)); }}
+                                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                                         />
                                     </PaginationItem>
                                 </PaginationContent>

@@ -84,19 +84,19 @@ class SoapUserProvider implements UserProvider
                 $sectionName = $account->SectionName ?? '';
 
                 // 2. Custom Authorization Check
-                if ($sectionName !== "Integrated Management Information System Section" && 
-                    $sectionName !== "Human Resource Management Section") {
+                // if ($sectionName !== "Integrated Management Information System Section" && 
+                //     $sectionName !== "Human Resource Management Section") {
                     
-                    // Check tblModulesUserAccess if not in allowed sections
-                    $hasAccess = DB::table('tblModulesUserAccess')
-                        ->where('BiometricID', $bioid)
-                        ->exists();
+                //     // Check tblModulesUserAccess if not in allowed sections
+                //     $hasAccess = DB::table('tblModulesUserAccess')
+                //         ->where('BiometricID', $bioid)
+                //         ->exists();
 
-                    if (!$hasAccess) {
-                        Log::info('HRIS Auth: User lacks required section/module permissions: ' . $bioid);
-                        return null; // Deny login
-                    }
-                }
+                //     if (!$hasAccess) {
+                //         Log::info('HRIS Auth: User lacks required section/module permissions: ' . $bioid);
+                //         return null; // Deny login
+                //     }
+                // }
 
                 // 3. Map User Data from SOAP Response
                 $employeeName = $account->FullName ?? 'Unknown User';

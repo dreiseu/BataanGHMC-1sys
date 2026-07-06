@@ -25,7 +25,7 @@ interface TicketType {
     created_at: string;
     attachments?: string[];
     remarks?: string;
-    accepted_by_name?: string;
+    accepted_by?: string;
     comments?: {
         id: number;
         message: string;

@@ -12,10 +12,17 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/dialog';
 
-import dohLogoUrl from '../../images/DOH.png';
-import bghmcLogoUrl from '../../images/BGHMC.png';
-import bagongPilipinasLogoUrl from '../../images/Bagong_Pilipinas.png';
+import dohLogoUrl from '../../../images/DOH.png';
+import bghmcLogoUrl from '../../../images/BGHMC.png';
+import bagongPilipinasLogoUrl from '../../../images/Bagong_Pilipinas.png';
 
 type DirectoryEntry = {
     id: number;
@@ -24,6 +31,7 @@ type DirectoryEntry = {
     section: string;
     is_active: boolean;
     sort_order: number;
+    updated_at: string;
 };
 
 type Props = {
@@ -34,6 +42,7 @@ export default function Directory({ entries }: Props) {
     const [search, setSearch] = useState('');
 
     const [sectionFilter, setSectionFilter] = useState('all');
+    const [selectedEntry, setSelectedEntry] = useState<DirectoryEntry | null>(null);
 
     const filteredDirectory = useMemo(() => {
         const keyword = search.toLowerCase().trim();
@@ -80,8 +89,22 @@ export default function Directory({ entries }: Props) {
     }, [bucasDirectory]);
 
     const currentDate = useMemo(() => {
-        return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    }, []);
+        if (!entries || entries.length === 0) {
+            return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+
+        const latestEntry = entries.reduce((latest, current) => {
+            if (!current.updated_at) return latest;
+            if (!latest.updated_at) return current;
+            return new Date(current.updated_at) > new Date(latest.updated_at) ? current : latest;
+        }, entries[0]);
+
+        if (!latestEntry || !latestEntry.updated_at) {
+            return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        }
+
+        return new Date(latestEntry.updated_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }, [entries]);
 
     const currentYear = new Date().getFullYear();
 
@@ -89,7 +112,7 @@ export default function Directory({ entries }: Props) {
         <>
             <Head title="Directory" />
 
-            <div className="p-6 mx-auto w-full max-w-7xl">
+            <div className="p-6 mt-6 mx-auto w-full max-w-7xl">
                 {/* Search Hero Banner (Hidden on Print) */}
                 <section className="print:hidden relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
                     <div className="absolute inset-0 z-0">
@@ -195,13 +218,13 @@ export default function Directory({ entries }: Props) {
                                 <table key={i} className="w-full border-[2px] border-black text-[10px] sm:text-xs font-sans bg-white text-black">
                                     <thead>
                                         <tr className="border-b-[2px] border-black">
-                                            <th 
+                                            <th
                                                 className="border-r-[2px] border-black p-1 sm:p-1.5 text-center font-bold bg-[#DDEBF7] text-[#002060] w-2/3"
                                                 style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                                             >
                                                 Department/Ward/Office
                                             </th>
-                                            <th 
+                                            <th
                                                 className="p-1 sm:p-1.5 text-center font-bold whitespace-nowrap bg-[#DDEBF7] text-[#002060] w-1/3"
                                                 style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                                             >
@@ -211,13 +234,10 @@ export default function Directory({ entries }: Props) {
                                     </thead>
                                     <tbody>
                                         {col.map(item => (
-                                            <tr 
-                                                key={item.id} 
-                                                className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent" 
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(item.local_no);
-                                                    toast.success('Local number copied.');
-                                                }}
+                                            <tr
+                                                key={item.id}
+                                                className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent"
+                                                onClick={() => setSelectedEntry(item)}
                                             >
                                                 <td className="border-r-[2px] border-black p-1 sm:p-1.5 font-semibold uppercase leading-tight text-[9px] sm:text-[11px] break-words">
                                                     {item.department}
@@ -246,13 +266,13 @@ export default function Directory({ entries }: Props) {
                                     <table key={i} className="w-full border-[2px] border-black text-[10px] sm:text-xs font-sans bg-white text-black">
                                         <thead>
                                             <tr className="border-b-[2px] border-black">
-                                                <th 
+                                                <th
                                                     className="border-r-[2px] border-black p-1 sm:p-1.5 text-center font-bold bg-[#DDEBF7] text-[#002060] w-2/3"
                                                     style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                                                 >
                                                     Department/Ward/Office
                                                 </th>
-                                                <th 
+                                                <th
                                                     className="p-1 sm:p-1.5 text-center font-bold whitespace-nowrap bg-[#DDEBF7] text-[#002060] w-1/3"
                                                     style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                                                 >
@@ -262,13 +282,10 @@ export default function Directory({ entries }: Props) {
                                         </thead>
                                         <tbody>
                                             {col.map(item => (
-                                                <tr 
-                                                    key={item.id} 
-                                                    className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent" 
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(item.local_no);
-                                                        toast.success('Local number copied.');
-                                                    }}
+                                                <tr
+                                                    key={item.id}
+                                                    className="border-b border-black last:border-0 hover:bg-black/5 transition-colors group cursor-pointer print:hover:bg-transparent"
+                                                    onClick={() => setSelectedEntry(item)}
                                                 >
                                                     <td className="border-r-[2px] border-black p-1 sm:p-1.5 font-semibold uppercase leading-tight text-[9px] sm:text-[11px] break-words">
                                                         {item.department}
@@ -322,6 +339,36 @@ export default function Directory({ entries }: Props) {
                     </div>
                 </div>
             </div>
+
+            <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+                <DialogContent className="sm:max-w-md overflow-hidden p-0 border border-white/10 shadow-2xl bg-transparent gap-0 [&>button]:text-white [&>button]:cursor-pointer hover:[&>button]:text-white/80">
+                    {/* Top Header Section with Dark Gradient */}
+                    <div className="relative overflow-hidden bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 pb-8 text-white">
+                        <div className="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 rounded-full bg-[#00D4FF] opacity-20 blur-3xl pointer-events-none"></div>
+                        <DialogHeader className="relative z-10 flex flex-col items-center">
+                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-[#00D4FF] shadow-inner">
+                                <Phone className="h-8 w-8" />
+                            </div>
+                            <DialogTitle className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-center w-full leading-tight drop-shadow-md text-white">
+                                {selectedEntry?.department}
+                            </DialogTitle>
+                            <DialogDescription className="text-center font-bold text-[#00D4FF] w-full mt-2 text-xs uppercase tracking-[0.2em]">
+                                {selectedEntry?.section === 'BataanGHMC' ? 'BataanGHMC' : 'BUCAS'} Local Number
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    {/* Bottom Number Section */}
+                    <div className="px-6 py-12 flex flex-col items-center bg-white dark:bg-card">
+                        <div className="relative group">
+                            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-[#00D4FF] to-blue-500 opacity-20 blur-xl transition duration-500 group-hover:opacity-40"></div>
+                            <span className="relative text-7xl sm:text-[100px] font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm leading-none">
+                                {selectedEntry?.local_no}
+                            </span>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

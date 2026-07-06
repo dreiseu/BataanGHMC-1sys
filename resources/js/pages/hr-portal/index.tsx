@@ -52,25 +52,10 @@ const hrSections = [
     },
 ];
 
-const announcementsPreview = [
-    {
-        title: 'Updated leave filing schedule released',
-        date: 'Apr 24, 2026',
-        isNew: true,
-    },
-    {
-        title: 'Mandatory employee orientation this month',
-        date: 'Apr 20, 2026',
-        isNew: true,
-    },
-    {
-        title: 'New HR advisory on employee benefits',
-        date: 'Mar 31, 2026',
-        isNew: false,
-    },
-];
+import { usePage } from '@inertiajs/react';
 
 export default function HrPortal() {
+    const { recentAnnouncements = [] } = usePage<{ recentAnnouncements: any[] }>().props;
 
     const [resourceSearch, setResourceSearch] = useState('');
 
@@ -88,10 +73,10 @@ export default function HrPortal() {
                 description="Human Resource services, employee resources, policies, forms, and announcements."
             /> */}
 
-            <div className="flex flex-col lg:flex-row gap-6 p-6 mx-auto w-full max-w-7xl">
+            <div className="flex flex-col lg:flex-row gap-6 p-6 mt-6 mx-auto w-full max-w-7xl">
                 {/* Main Content Column */}
                 <div className="flex-1 flex flex-col gap-6">
-                    
+
                     {/* Search Hero Banner */}
                     <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
                         <div className="absolute inset-0 z-0">
@@ -110,7 +95,7 @@ export default function HrPortal() {
                             <p className="mt-3 text-base text-white/90 leading-relaxed font-medium mb-6">
                                 Access orientation materials, downloadable forms, employee benefits resources, and frequently asked questions.
                             </p>
-                            
+
                             <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-black/20 px-4 py-3 shadow-inner backdrop-blur-md transition-colors focus-within:border-[#00D4FF]/50 focus-within:bg-black/30">
                                 <Search className="h-5 w-5 text-[#00D4FF]" />
                                 <input
@@ -140,7 +125,7 @@ export default function HrPortal() {
                                         className="group relative overflow-hidden rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#00D4FF]/40 block"
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                                        
+
                                         <div className="relative z-10">
                                             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#1E293B]/10 text-[#1E293B] transition-colors duration-300 group-hover:bg-[#00D4FF]/10 group-hover:text-[#00D4FF]">
                                                 <Icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
@@ -182,30 +167,38 @@ export default function HrPortal() {
                                 <Bell className="h-4 w-4" />
                             </div>
                         </div>
-                        
+
                         <div className="flex flex-col gap-5 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/50">
-                            {announcementsPreview.map((item) => (
-                                <div key={item.title} className="relative pl-8 group">
-                                    {/* Timeline dot */}
-                                    <div className="absolute left-[7px] top-1.5 h-[9px] w-[9px] rounded-full bg-border transition-colors group-hover:bg-[#00D4FF] z-10 ring-4 ring-card" />
-                                    
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                                {item.date}
-                                            </span>
-                                            {item.isNew && (
-                                                <span className="rounded-full bg-[#00D4FF]/20 px-2 py-0.5 text-[10px] font-bold text-[#00D4FF]">
-                                                    NEW
+                            {recentAnnouncements.length > 0 ? recentAnnouncements.map((item) => {
+                                const dateObj = new Date(item.created_at);
+                                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                const isNew = (new Date().getTime() - dateObj.getTime()) < (7 * 24 * 60 * 60 * 1000);
+
+                                return (
+                                    <div key={item.id} className="relative pl-8 group">
+                                        {/* Timeline dot */}
+                                        <div className="absolute left-[7px] top-1.5 h-[9px] w-[9px] rounded-full bg-border transition-colors group-hover:bg-[#00D4FF] z-10 ring-4 ring-card" />
+
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                    {dateStr}
                                                 </span>
-                                            )}
+                                                {isNew && (
+                                                    <span className="rounded-full bg-[#00D4FF]/20 px-2 py-0.5 text-[10px] font-bold text-[#00D4FF]">
+                                                        NEW
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h3 className="font-semibold text-sm leading-snug text-foreground/90 group-hover:text-foreground transition-colors line-clamp-2">
+                                                {item.title}
+                                            </h3>
                                         </div>
-                                        <h3 className="font-semibold text-sm leading-snug text-foreground/90 group-hover:text-foreground transition-colors">
-                                            {item.title}
-                                        </h3>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            }) : (
+                                <div className="pl-4 text-sm text-muted-foreground italic">No recent announcements.</div>
+                            )}
                         </div>
 
                         <Link

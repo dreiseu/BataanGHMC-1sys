@@ -18,8 +18,18 @@ class ImissTicket extends Model
         'attachments',
         'status',
         'remarks',
-        'accepted_by_name',
+        'accepted_by',
         'accepted_at',
+        'cancelled_at',
+        'reviewed_at',
+        'reviewed_by',
+        'endorsed_at',
+        'endorsed_by',
+        'returned_at',
+        'returned_by',
+        'finished_at',
+        'finished_by',
+        'resolved_at',
         'rating',
         'feedback_text',
     ];
@@ -27,6 +37,12 @@ class ImissTicket extends Model
     protected $casts = [
         'attachments' => 'array',
         'accepted_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'reviewed_at' => 'datetime',
+        'endorsed_at' => 'datetime',
+        'returned_at' => 'datetime',
+        'finished_at' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
 
     protected $appends = ['subject'];

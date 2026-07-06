@@ -10,6 +10,7 @@ import {
     BookUser,
     Box,
     Building2,
+    CalendarDays,
     Contact,
     Cpu,
     Drill,
@@ -39,6 +40,7 @@ import {
     SidebarFooter,
     SidebarInput,
     SidebarRail,
+    SidebarTrigger,
 } from '@/components/ui/sidebar';
 
 import type { NavItem } from '@/types';
@@ -48,6 +50,16 @@ const mainNavItems: NavItem[] = [
         title: 'Home',
         href: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Recognition Wall',
+        href: '/recognition',
+        icon: Award,
+    },
+    {
+        title: 'Events Calendar',
+        href: '/events',
+        icon: CalendarDays,
     },
     {
         title: 'Systems',
@@ -70,8 +82,8 @@ const mainNavItems: NavItem[] = [
             { title: 'BataanGHMC-CERT', href: '/cert' },
             { title: 'HR Portal', href: '/hr-portal' },
             { title: 'IMISS', href: '/imiss' },
-            { title: 'PETRO', href: '/petro' },
-            { title: 'QR-PASS', href: '/qr-pass' },
+            { title: 'PETRO', href: 'https://sites.google.com/view/bghmc-petro/home' },
+            { title: 'QR PASS', href: '/qr-pass' },
         ]
     },
     {
@@ -80,6 +92,7 @@ const mainNavItems: NavItem[] = [
         icon: BookOpen,
         items: [
             { title: 'Directory', href: '/directory' },
+            { title: 'Facility Map', href: '/facility-map' },
             { title: 'User Guide', href: '/user-guide' },
         ]
     },
@@ -89,8 +102,12 @@ const mainNavItems: NavItem[] = [
         icon: Settings,
         items: [
             { title: 'Directories', href: '/utilities/directories' },
+            { title: 'Events', href: '/utilities/events' },
+            { title: 'HR Documents', href: '/utilities/hr-documents' },
             { title: 'IMISS Request Types', href: '/utilities/imiss-request-types' },
             { title: 'Systems & Portals', href: '/utilities/systems' },
+            { title: 'User Access', href: '/utilities/user-access' },
+            { title: 'Video Orientations', href: '/utilities/video-orientations' },
         ]
     },
 ];
@@ -100,13 +117,17 @@ export function AppSidebar() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const dynamicNavItems = useMemo(() => {
+        const { auth } = usePage().props as any;
+        const userSection = auth?.user?.SectionName ?? '';
+        const isImissUser = userSection === 'Integrated Management Information System Section';
+
         const dynamicSystems = (hospital_systems || []).map((system: any) => {
             const nameLower = system.name.toLowerCase();
             const isEmployeePortal = nameLower.includes('employee') && nameLower.includes('portal');
             const is1App = nameLower === '1app' || nameLower.includes('1app');
             const isIhomp = nameLower === 'ihomp cms' || nameLower.includes('ihomp');
             const isEfms = nameLower.includes('efms');
-            
+
             const isSsoSystem = isEmployeePortal || is1App || isIhomp || isEfms;
 
             return {
@@ -115,15 +136,21 @@ export function AppSidebar() {
             };
         });
 
-        return mainNavItems.map(item => {
-            if (item.title === 'Systems') {
-                return {
-                    ...item,
-                    items: dynamicSystems
-                };
-            }
-            return item;
-        });
+        return mainNavItems
+            .filter(item => {
+                // Hide Utilities for non-IMISS users
+                if (item.title === 'Utilities' && !isImissUser) return false;
+                return true;
+            })
+            .map(item => {
+                if (item.title === 'Systems') {
+                    return {
+                        ...item,
+                        items: dynamicSystems
+                    };
+                }
+                return item;
+            });
     }, [hospital_systems]);
 
     const filteredNavItems = dynamicNavItems.filter((item) =>
@@ -133,8 +160,8 @@ export function AppSidebar() {
     return (
         <Sidebar collapsible="icon" variant="inset" className="p-0">
             <SidebarContent className="gap-4 py-3">
-                <div className="px-3 pt-2 group-data-[collapsible=icon]:hidden">
-                    <div className="relative">
+                <div className="px-3 pt-2 flex items-center gap-2">
+                    <div className="relative flex-1 group-data-[collapsible=icon]:hidden">
                         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-sidebar-foreground/45" />
                         <SidebarInput
                             value={searchQuery}
@@ -143,6 +170,7 @@ export function AppSidebar() {
                             className="h-10 rounded-lg border-sidebar-border/70 bg-sidebar-accent/35 pl-9 text-sidebar-foreground placeholder:text-sidebar-foreground/45 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-sidebar-ring/50"
                         />
                     </div>
+                    <SidebarTrigger className="cursor-pointer -mr-1 text-slate-200 hover:bg-slate-100 hover:text-slate-900" />
                 </div>
 
                 <NavMain
@@ -153,10 +181,10 @@ export function AppSidebar() {
             </SidebarContent>
             <SidebarFooter>
                 <div className="p-2 text-xs text-left text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-                    Copyright &copy; Bataan General Hospital<br />and Medical Center 2025
+                    Philippine Copyright © 2018 Dr. Glory V. Baltazar
                 </div>
                 <div className="hidden p-2 text-[10px] text-center text-sidebar-foreground/60 group-data-[collapsible=icon]:block font-semibold">
-                    BGHMC 2025
+                    BGHMC 2026
                 </div>
             </SidebarFooter>
             <SidebarRail />

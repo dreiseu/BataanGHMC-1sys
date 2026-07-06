@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'permission' => \App\Http\Middleware\EnsureUserHasPermission::class,
+            'prevent-back-history' => \App\Http\Middleware\PreventBackHistory::class,
+            'imiss-section' => \App\Http\Middleware\EnsureImissSection::class,
         ]);
 
         $middleware->web(append: [

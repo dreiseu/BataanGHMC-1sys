@@ -59,8 +59,32 @@ class HandleInertiaRequests extends Middleware
                     return $sessionUser;
                 },
             ],
-            'hospital_systems' => function () {
-                return \Illuminate\Support\Facades\DB::table('hospital_systems')->get(['name', 'url']);
+            'hospital_systems' => function () use ($request) {
+                $sessionUser = $request->session()->get('soap_user_data');
+                if (!$sessionUser) return [];
+
+                $authority = \Illuminate\Support\Facades\DB::table('UserAuthority')
+                    ->where('BiometricID', $sessionUser['bioid'] ?? '')
+                    ->first(['permissions']);
+
+                $permissions = [];
+                if ($authority && $authority->permissions) {
+                    $permissions = is_string($authority->permissions) ? json_decode($authority->permissions, true) : $authority->permissions;
+                }
+                
+                $defaultSystems = [
+                    'DiCe',
+                    'EFMS Job Order Request System',
+                    "Employee's Portal",
+                    'Health & Wellness Clinic',
+                    'Parking Management System',
+                    'PGS Online System'
+                ];
+
+                return \Illuminate\Support\Facades\DB::table('hospital_systems')->get()
+                    ->filter(function ($system) use ($defaultSystems, $permissions) {
+                        return in_array($system->name, $defaultSystems) || in_array("system:{$system->id}", $permissions ?? []);
+                    })->values();
             },
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [

@@ -14,7 +14,7 @@ class DirectoryController extends Controller
             ->orderBy('department')
             ->get();
 
-        return Inertia::render('directory', [
+        return Inertia::render('modules/directory', [
             'entries' => $entries,
         ]);
     }

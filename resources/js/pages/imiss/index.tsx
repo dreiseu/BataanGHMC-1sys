@@ -31,7 +31,10 @@ import {
     AlertTriangle,
     MapPin,
     File as FileIcon,
-    Loader2
+    Loader2,
+    ArrowRight,
+    Wrench,
+    WrenchIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
@@ -111,11 +114,17 @@ interface TicketType {
     local_number?: string;
     pc_number?: string;
     accepted_at?: string;
+    cancelled_at?: string;
+    reviewed_at?: string;
+    endorsed_at?: string;
+    returned_at?: string;
+    finished_at?: string;
+    resolved_at?: string;
     created_at: string;
     updated_at?: string;
     attachments?: string[];
     remarks?: string;
-    accepted_by_name?: string;
+    accepted_by?: string;
     comments?: {
         id: number;
         message: string;
@@ -183,7 +192,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                     const match = n.message.match(/(TKT-\d{4}-\d{3})/);
                     if (match) {
                         const ticketNumber = match[1];
-                        
+
                         if (n.title === 'Ticket Update') {
                             toast(`Ticket ${ticketNumber} Updated`, {
                                 id: `status-${ticketNumber}`,
@@ -506,7 +515,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
         <>
             <Head title="IMISS" />
 
-            <div className="flex flex-col lg:flex-row gap-6 p-6 mx-auto w-full max-w-7xl">
+            <div className="flex flex-col lg:flex-row gap-6 p-6 mt-6 mx-auto w-full max-w-7xl">
                 {/* Main Content Column */}
                 <div className="flex-1 flex flex-col gap-6">
 
@@ -553,7 +562,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                     placeholder="Search systems..."
                                     className="pl-9 rounded-xl bg-card border-muted-foreground/20"
                                     value={searchSystem}
-                                    onChange={(e) => {
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                         setSearchSystem(e.target.value);
                                         setSystemPage(1); // Reset to first page on search
                                     }}
@@ -731,59 +740,63 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                                 <h3 className="font-semibold text-foreground text-sm leading-snug">
                                                     {requestTypeLabels[activeTicket.request_type] || activeTicket.request_type}
                                                 </h3>
-                                                {activeTicket.accepted_by_name && (
+                                                {activeTicket.accepted_by && (
                                                     <div className="mt-2 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
                                                         <div className="h-4 w-4 rounded-full bg-[#00D4FF]/20 flex items-center justify-center shrink-0">
                                                             <div className="h-1.5 w-1.5 rounded-full bg-[#00D4FF]"></div>
                                                         </div>
-                                                        <span>Assigned to: <span className="font-semibold text-foreground">{activeTicket.accepted_by_name}</span></span>
+                                                        <span>Assigned to: <span className="font-semibold text-foreground">{activeTicket.accepted_by}</span></span>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="flex flex-col gap-3 relative before:absolute before:inset-y-1 before:left-[9px] before:w-px before:bg-border">
-                                                {activeTicket.status === 'Accomplished' && (
-                                                    <div className="flex gap-3 relative z-10">
-                                                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white ring-4 ring-card">
-                                                            <CheckCircle2 className="h-3 w-3" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-medium text-foreground">Accomplished</p>
-                                                            <p className="text-[10px] text-muted-foreground">
-                                                                {activeTicket.updated_at ? new Date(activeTicket.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                            {(() => {
+                                                const timeline = [];
+                                                if (activeTicket.resolved_at) timeline.push({ status: 'Resolved', date: activeTicket.resolved_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                                else if (activeTicket.status === 'Resolved') timeline.push({ status: 'Resolved', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
 
-                                                {(activeTicket.status === 'In Progress' || activeTicket.status === 'Pending / For Correction' || activeTicket.status === 'Accomplished') && (
-                                                    <div className="flex gap-3 relative z-10">
-                                                        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#00D4FF] text-white ring-4 ring-card">
-                                                            <Clock className="h-3 w-3" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-medium text-foreground">
-                                                                {activeTicket.status === 'Accomplished' ? 'In Progress' : activeTicket.status}
-                                                            </p>
-                                                            <p className="text-[10px] text-muted-foreground">
-                                                                {activeTicket.accepted_at ? new Date(activeTicket.accepted_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                if (activeTicket.cancelled_at) timeline.push({ status: 'Cancelled', date: activeTicket.cancelled_at, icon: X, color: 'bg-zinc-500 text-white' });
+                                                else if (activeTicket.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: activeTicket.updated_at || activeTicket.created_at, icon: X, color: 'bg-zinc-500 text-white' });
 
-                                                <div className="flex gap-3 relative z-10">
-                                                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-4 ring-card">
-                                                        <CheckCircle2 className="h-3 w-3" />
+                                                if (activeTicket.finished_at) timeline.push({ status: 'Accomplished', date: activeTicket.finished_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                                else if (['Accomplished', 'Resolved'].includes(activeTicket.status)) timeline.push({ status: 'Accomplished', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+
+                                                if (activeTicket.returned_at) timeline.push({ status: 'Returned', date: activeTicket.returned_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+                                                else if (activeTicket.status === 'Returned') timeline.push({ status: 'Returned', date: activeTicket.updated_at || activeTicket.created_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+
+                                                if (activeTicket.accepted_at) timeline.push({ status: 'In Progress', date: activeTicket.accepted_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
+                                                else if (['In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(activeTicket.status)) timeline.push({ status: 'In Progress', date: activeTicket.updated_at || activeTicket.created_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
+
+                                                if (activeTicket.endorsed_at) timeline.push({ status: 'Endorsed', date: activeTicket.endorsed_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+                                                else if (activeTicket.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: activeTicket.updated_at || activeTicket.created_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+
+                                                if (activeTicket.reviewed_at) timeline.push({ status: 'Under Review', date: activeTicket.reviewed_at, icon: Search, color: 'bg-[#00D4FF] text-white' });
+                                                else if (['Under Review', 'Endorsed', 'In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(activeTicket.status)) timeline.push({ status: 'Under Review', date: activeTicket.updated_at || activeTicket.created_at, icon: Search, color: 'bg-[#00D4FF] text-white' });
+
+                                                timeline.push({ status: 'Ticket Submitted', date: activeTicket.created_at, icon: CheckCircle2, color: 'bg-muted text-muted-foreground' });
+                                                timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                                                return (
+                                                    <div className="flex flex-col gap-3 relative before:absolute before:inset-y-1 before:left-[9px] before:w-px before:bg-border">
+                                                        {timeline.map((item, idx) => {
+                                                            const Icon = item.icon;
+                                                            return (
+                                                                <div key={idx} className="flex gap-3 relative z-10">
+                                                                    <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${item.color} ring-4 ring-card`}>
+                                                                        <Icon className="h-3 w-3" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-xs font-medium text-foreground">{item.status}</p>
+                                                                        <p className="text-[10px] text-muted-foreground">
+                                                                            {new Date(item.date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-medium text-foreground">Ticket Submitted</p>
-                                                        <p className="text-[10px] text-muted-foreground">
-                                                            {new Date(activeTicket.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                );
+                                            })()}
 
                                             <div className="mt-4">
                                                 {activeTicket.status === 'Accomplished' ? (
@@ -938,7 +951,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             <label className="text-sm font-semibold text-foreground">
                                 Request Type <span className="text-destructive">*</span>
                             </label>
-                            <Select value={data.request_type} onValueChange={(val) => setData('request_type', val)}>
+                            <Select value={data.request_type} onValueChange={(val: string) => setData('request_type', val)}>
                                 <SelectTrigger className="w-full rounded-xl !bg-white focus:ring-[#1E293B]/30 overflow-hidden cursor-pointer">
                                     <SelectValue placeholder="Select type of issue..." />
                                 </SelectTrigger>
@@ -962,7 +975,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                         placeholder="e.g., 123"
                                         className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.local_number}
-                                        onChange={e => setData('local_number', e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('local_number', e.target.value)}
                                     />
                                 </div>
                                 {errors.local_number && <span className="text-xs text-destructive">{errors.local_number}</span>}
@@ -977,7 +990,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                         placeholder="e.g., PC-01"
                                         className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.pc_number}
-                                        onChange={e => setData('pc_number', e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('pc_number', e.target.value)}
                                     />
                                 </div>
                                 {errors.pc_number && <span className="text-xs text-destructive">{errors.pc_number}</span>}
@@ -994,7 +1007,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                     placeholder="e.g., Pharmacy Dept, Ward 3"
                                     className="rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                     value={data.location}
-                                    onChange={e => setData('location', e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('location', e.target.value)}
                                 />
                             </div>
                             {errors.location && <span className="text-xs text-destructive">{errors.location}</span>}
@@ -1036,7 +1049,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                 placeholder="Please describe the issue in detail..."
                                 className="min-h-[100px] rounded-xl resize-none bg-white focus-visible:ring-[#1E293B]/30"
                                 value={data.description}
-                                onChange={e => setData('description', e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setData('description', e.target.value)}
                             />
                             {errors.description && <span className="text-xs text-destructive">{errors.description}</span>}
                         </div>
@@ -1112,17 +1125,17 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
             </Dialog>
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent
-                    className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out"
-                    onInteractOutside={(e) => {
+                    className="sm:max-w-[600px] flex flex-col max-h-[95vh] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out"
+                    onInteractOutside={(e: Event) => {
                         if (commentForm.processing) {
                             e.preventDefault();
                         }
                     }}
-                    onFocusOutside={(e) => {
+                    onFocusOutside={(e: Event) => {
                         e.preventDefault();
                     }}
                 >
-                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden shrink-0">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-[#00D4FF] opacity-20 blur-2xl mix-blend-screen pointer-events-none"></div>
                         <DialogHeader>
                             <div className="mb-2 relative z-10">
@@ -1160,9 +1173,9 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                     </div>
                                     <div className="flex flex-col gap-1 mt-1 text-xs">
                                         <span>Submitted on {selectedTicket && new Date(selectedTicket.created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-                                        {selectedTicket?.accepted_by_name && (
+                                        {selectedTicket?.accepted_by && (
                                             <span className="inline-flex items-center gap-1.5 bg-black/20 w-fit px-2 py-0.5 rounded-full font-medium mt-1 border border-white/5">
-                                                Assigned to: {selectedTicket.accepted_by_name}
+                                                Assigned to (BioID): {selectedTicket.accepted_by}
                                             </span>
                                         )}
                                     </div>
@@ -1171,7 +1184,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                         </DialogHeader>
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-6 overflow-y-auto flex-1 emr-scrollbar">
 
                         <div className="mb-6">
                             <h4 className="text-xs font-bold text-muted-foreground mb-1 uppercase tracking-wider">Problem Description</h4>
@@ -1191,51 +1204,55 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
 
                         <div>
                             <h4 className="text-sm font-bold text-foreground mb-4 uppercase tracking-wider">Activity Feed</h4>
-                            <div className="flex flex-col gap-4 relative before:absolute before:inset-y-2 before:left-[11px] before:w-px before:bg-border pl-1">
-                                {selectedTicket?.status === 'Accomplished' && (
-                                    <div className="flex gap-4 relative z-10">
-                                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white ring-4 ring-card">
-                                            <CheckCircle2 className="h-3 w-3" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-emerald-600">Accomplished</p>
-                                            <p className="text-xs text-muted-foreground mb-1">
-                                                {selectedTicket.updated_at ? new Date(selectedTicket.updated_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
-                                            </p>
-                                            <p className="text-sm text-foreground/90">The requested fix has been implemented.</p>
-                                        </div>
-                                    </div>
-                                )}
+                            {(() => {
+                                const timeline = [];
+                                if (selectedTicket?.resolved_at) timeline.push({ status: 'Resolved', date: selectedTicket.resolved_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                else if (selectedTicket?.status === 'Resolved') timeline.push({ status: 'Resolved', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
 
-                                {(selectedTicket?.status === 'In Progress' || selectedTicket?.status === 'Pending / For Correction' || selectedTicket?.status === 'Accomplished') && (
-                                    <div className="flex gap-4 relative z-10">
-                                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#00D4FF] text-white ring-4 ring-card">
-                                            <Clock className="h-3 w-3" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-foreground">
-                                                {selectedTicket.status === 'Accomplished' ? 'In Progress' : selectedTicket.status}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {selectedTicket.accepted_at ? new Date(selectedTicket.accepted_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                                if (selectedTicket?.cancelled_at) timeline.push({ status: 'Cancelled', date: selectedTicket.cancelled_at, icon: X, color: 'bg-zinc-500 text-white' });
+                                else if (selectedTicket?.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: selectedTicket.updated_at || selectedTicket.created_at, icon: X, color: 'bg-zinc-500 text-white' });
 
-                                <div className="flex gap-4 relative z-10">
-                                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#00D4FF] text-white ring-4 ring-card">
-                                        <CheckCircle2 className="h-3 w-3" />
+                                if (selectedTicket?.finished_at) timeline.push({ status: 'Accomplished', date: selectedTicket.finished_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                else if (selectedTicket && ['Accomplished', 'Resolved'].includes(selectedTicket.status)) timeline.push({ status: 'Accomplished', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+
+                                if (selectedTicket?.returned_at) timeline.push({ status: 'Returned', date: selectedTicket.returned_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+                                else if (selectedTicket?.status === 'Returned') timeline.push({ status: 'Returned', date: selectedTicket.updated_at || selectedTicket.created_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+
+                                if (selectedTicket?.accepted_at) timeline.push({ status: 'In Progress', date: selectedTicket.accepted_at, icon: Clock, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket && ['In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(selectedTicket.status)) timeline.push({ status: 'In Progress', date: selectedTicket.updated_at || selectedTicket.created_at, icon: Clock, color: 'bg-[#00D4FF] text-white' });
+
+                                if (selectedTicket?.endorsed_at) timeline.push({ status: 'Endorsed', date: selectedTicket.endorsed_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+                                else if (selectedTicket?.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: selectedTicket.updated_at || selectedTicket.created_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+
+                                if (selectedTicket?.reviewed_at) timeline.push({ status: 'Under Review', date: selectedTicket.reviewed_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket && ['Under Review', 'Endorsed', 'In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(selectedTicket.status)) timeline.push({ status: 'Under Review', date: selectedTicket.updated_at || selectedTicket.created_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
+
+                                if (selectedTicket) timeline.push({ status: 'Ticket Submitted', date: selectedTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
+                                timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                                return (
+                                    <div className="flex flex-col gap-4 relative before:absolute before:inset-y-2 before:left-[11px] before:w-px before:bg-border pl-1">
+                                        {timeline.map((item, idx) => {
+                                            const Icon = item.icon;
+                                            return (
+                                                <div key={idx} className="flex gap-4 relative z-10">
+                                                    <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${item.color} ring-4 ring-card`}>
+                                                        <Icon className="h-3 w-3" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-foreground">{item.status}</p>
+                                                        <p className="text-xs text-muted-foreground mb-1">
+                                                            {new Date(item.date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-semibold text-foreground">Ticket Submitted</p>
-                                        <p className="text-xs text-muted-foreground">{selectedTicket && new Date(selectedTicket.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-                                    </div>
-                                </div>
-                            </div>
+                                );
+                            })()}
                         </div>
                     </div>
-
                     <div className="border-t border-muted bg-card shrink-0">
                         <div className="p-3 bg-muted/20 font-semibold text-xs flex items-center gap-2 border-b text-foreground">
                             <MessageSquare className="h-3.5 w-3.5 text-[#1E293B]" />
@@ -1252,20 +1269,33 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                             {comment.message && <div>{comment.message}</div>}
                                             {comment.attachments && comment.attachments.length > 0 && (
                                                 <div className={`mt-1 flex flex-wrap gap-2 ${comment.message ? 'pt-2 border-t border-white/20' : ''}`}>
-                                                    {comment.attachments.map((path, idx) => (
-                                                        <div key={idx}>
-                                                            {path.match(/\.(jpeg|jpg|png)$/i) ? (
-                                                                <a href={`/storage/${path}`} target="_blank" rel="noreferrer">
-                                                                    <img src={`/storage/${path}`} alt="attachment" className="max-h-[150px] rounded-lg border border-white/10 hover:opacity-90 transition-opacity" />
-                                                                </a>
-                                                            ) : (
-                                                                <a href={`/storage/${path}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors">
-                                                                    <FileIcon className="h-4 w-4" />
-                                                                    <span className="text-xs font-medium truncate max-w-[150px]">Attachment {idx + 1}</span>
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                                    {comment.attachments.map((path, idx) => {
+                                                        const isObject = typeof path === 'object' && path !== null && !((path as any) instanceof File);
+                                                        const pathStr = typeof path === 'string' ? path : (isObject ? (path as any).file : ((path as any)?.name || ''));
+                                                        
+                                                        // Ensure we have a valid path string for URLs
+                                                        let rawPath = isObject ? (path as any).file : (typeof path === 'string' ? path : null);
+                                                        
+                                                        // Always use the backend controller so it can fetch from network share
+                                                        let urlPath = rawPath ? `/imiss/comment-attachment/${rawPath}` : null;
+                                                        
+                                                        const isImage = pathStr.match(/\.(jpeg|jpg|png)$/i);
+
+                                                        return (
+                                                            <div key={idx}>
+                                                                {isImage ? (
+                                                                    <a href={urlPath ? urlPath : '#'} target="_blank" rel="noreferrer">
+                                                                        <img src={urlPath ? urlPath : (((path as any) instanceof File) ? URL.createObjectURL(path as any) : '')} alt="attachment" className="max-h-[150px] rounded-lg border border-white/10 hover:opacity-90 transition-opacity" />
+                                                                    </a>
+                                                                ) : (
+                                                                    <a href={urlPath ? urlPath : '#'} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors">
+                                                                        <FileIcon className="h-4 w-4" />
+                                                                        <span className="text-xs font-medium truncate max-w-[150px]">Attachment {idx + 1}</span>
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -1276,75 +1306,77 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             )}
                             <div ref={messagesEndRef} />
                         </div>
-                        <div className="p-3 bg-muted/10 border-t flex flex-col gap-2">
-                            {commentForm.data.attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {commentForm.data.attachments.map((file, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded-lg border w-max">
-                                            <FileIcon className="h-4 w-4 text-[#1E293B]" />
-                                            <span className="truncate max-w-[150px] font-medium">{file.name}</span>
-                                            <button onClick={() => {
-                                                const inputElement = document.getElementById('chat-input');
-                                                if (inputElement) inputElement.focus();
+                        {selectedTicket?.status !== 'Resolved' && selectedTicket?.status !== 'Cancelled' && (
+                            <div className="p-3 bg-muted/10 border-t flex flex-col gap-2 shrink-0">
+                                {commentForm.data.attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {commentForm.data.attachments.map((file, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded-lg border w-max">
+                                                <FileIcon className="h-4 w-4 text-[#1E293B]" />
+                                                <span className="truncate max-w-[150px] font-medium">{file.name}</span>
+                                                <button onClick={() => {
+                                                    const inputElement = document.getElementById('chat-input');
+                                                    if (inputElement) inputElement.focus();
 
-                                                const newAttachments = [...commentForm.data.attachments];
-                                                newAttachments.splice(idx, 1);
-                                                commentForm.setData('attachments', newAttachments);
-                                            }} className="text-muted-foreground hover:text-red-500 transition-colors ml-1">
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="flex gap-2 items-center">
-                                <Input
-                                    id="chat-input"
-                                    placeholder="Type a message..."
-                                    value={commentForm.data.message}
-                                    onChange={(e) => commentForm.setData('message', e.target.value)}
-                                    className="rounded-full bg-background"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && (commentForm.data.message.trim() || commentForm.data.attachments.length > 0) && !commentForm.processing) {
-                                            submitComment();
-                                        }
-                                    }}
-                                />
-                                <div className="relative shrink-0">
-                                    <input
-                                        type="file"
-                                        multiple
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                                        onChange={(e) => {
-                                            if (e.target.files) {
-                                                const newFiles = Array.from(e.target.files);
-                                                commentForm.setData('attachments', [...commentForm.data.attachments, ...newFiles]);
+                                                    const newAttachments = [...commentForm.data.attachments];
+                                                    newAttachments.splice(idx, 1);
+                                                    commentForm.setData('attachments', newAttachments);
+                                                }} className="text-muted-foreground hover:text-red-500 transition-colors ml-1">
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex gap-2 items-center">
+                                    <Input
+                                        id="chat-input"
+                                        placeholder="Type a message..."
+                                        value={commentForm.data.message}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => commentForm.setData('message', e.target.value)}
+                                        className="rounded-full bg-background"
+                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                            if (e.key === 'Enter' && (commentForm.data.message.trim() || commentForm.data.attachments.length > 0) && !commentForm.processing) {
+                                                submitComment();
                                             }
-                                            e.target.value = '';
                                         }}
-                                        accept=".jpg,.jpeg,.png,.pdf"
                                     />
-                                    <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#1E293B] cursor-pointer">
-                                        <Paperclip className="h-4 w-4" />
+                                    <div className="relative shrink-0">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                if (e.target.files) {
+                                                    const newFiles = Array.from(e.target.files);
+                                                    commentForm.setData('attachments', [...commentForm.data.attachments, ...newFiles]);
+                                                }
+                                                e.target.value = '';
+                                            }}
+                                            accept=".jpg,.jpeg,.png,.pdf"
+                                        />
+                                        <Button variant="outline" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-[#1E293B] cursor-pointer">
+                                            <Paperclip className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        className="rounded-full shrink-0 bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-white cursor-pointer h-10 w-10"
+                                        disabled={(!commentForm.data.message.trim() && commentForm.data.attachments.length === 0)}
+                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                            e.preventDefault();
+                                            submitComment();
+                                        }}
+                                    >
+                                        {commentForm.processing ? (
+                                            <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
                                     </Button>
                                 </div>
-                                <Button
-                                    size="icon"
-                                    className="rounded-full shrink-0 bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-white cursor-pointer h-10 w-10"
-                                    disabled={(!commentForm.data.message.trim() && commentForm.data.attachments.length === 0)}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        submitComment();
-                                    }}
-                                >
-                                    {commentForm.processing ? (
-                                        <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
-                                    ) : (
-                                        <Send className="h-4 w-4" />
-                                    )}
-                                </Button>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-between items-center gap-3 shrink-0">
@@ -1391,7 +1423,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             <Input
                                 placeholder="Search ticket # or type..."
                                 value={historySearch}
-                                onChange={(e) => setHistorySearch(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHistorySearch(e.target.value)}
                                 className="pl-9 !bg-white"
                             />
                         </div>
@@ -1415,7 +1447,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             filteredHistoryTickets.map((item) => (
                                 <div
                                     key={item.id}
-                                    onClick={() => { setIsHistoryOpen(false); setIsDetailsOpen(true); }}
+                                    onClick={() => { setSelectedTicket(item); setIsHistoryOpen(false); setIsDetailsOpen(true); }}
                                     className="flex items-center gap-4 p-4 rounded-2xl border bg-card hover:bg-muted/40 hover:border-[#00D4FF]/30 transition-all cursor-pointer group shadow-sm hover:shadow-md"
                                 >
                                     <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 bg-transparent group-hover:bg-[#00D4FF]/10 group-hover:border-[#00D4FF] transition-colors ${item.status === 'Accomplished' || item.status === 'Resolved' ? 'border-emerald-500' : 'border-amber-500'}`}>
@@ -1482,7 +1514,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             <Textarea
                                 placeholder="Tell us about your experience..."
                                 value={feedback}
-                                onChange={(e) => setFeedback(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback(e.target.value)}
                                 className="resize-none"
                             />
                         </div>
@@ -1576,7 +1608,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             No, Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                                 e.preventDefault();
                                 setIsConfirmSubmitOpen(false);
                                 handleSubmitTicket();

@@ -20,8 +20,31 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(
+            \Laravel\Fortify\Contracts\LogoutResponse::class,
+            function () {
+                return new class implements \Laravel\Fortify\Contracts\LogoutResponse {
+                    public function toResponse($request)
+                    {
+                        return \Inertia\Inertia::location('/login');
+                    }
+                };
+            }
+        );
+
+        $this->app->singleton(
+            \Laravel\Fortify\Contracts\LoginResponse::class,
+            function () {
+                return new class implements \Laravel\Fortify\Contracts\LoginResponse {
+                    public function toResponse($request)
+                    {
+                        return \Inertia\Inertia::location('/dashboard');
+                    }
+                };
+            }
+        );
     }
+
 
     /**
      * Bootstrap any application services.
