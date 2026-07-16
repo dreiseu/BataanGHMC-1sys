@@ -9,6 +9,7 @@ use App\Http\Controllers\ImissController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\ImissRequestTypeController;
 use App\Http\Controllers\UserAccessController;
+use App\Http\Controllers\AuditLogController;
 
 
 
@@ -16,7 +17,9 @@ Route::post('/session-end', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();
-    return response()->noContent();
+    return response()->noContent()
+        ->withoutCookie('XSRF-TOKEN')
+        ->withoutCookie('laravel_session');
 })->middleware('web')->name('session.end');
 
 Route::redirect('/', '/login')->name('home');
@@ -31,17 +34,8 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
         $userAuthority = \App\Models\UserAuthority::where('BiometricID', Auth::user()->bioid)->first();
         $permissions = $userAuthority->permissions ?? [];
         
-        $defaultSystems = [
-            'DiCe',
-            'EFMS Job Order Request System',
-            "Employee's Portal",
-            'Health & Wellness Clinic',
-            'Parking Management System',
-            'PGS Online System'
-        ];
-
-        $hospitalSystems = \App\Models\HospitalSystem::all()->filter(function ($system) use ($defaultSystems, $permissions) {
-            return in_array($system->name, $defaultSystems) || in_array("system:{$system->id}", $permissions);
+        $hospitalSystems = \App\Models\HospitalSystem::all()->filter(function ($system) use ($permissions) {
+            return $system->is_default || in_array("system:{$system->id}", $permissions);
         })->values();
 
         $globalAnnouncements = \App\Models\HrDocument::where('type', 'memorandum')
@@ -49,11 +43,12 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
             ->orderBy('sort_order')
             ->orderBy('created_at', 'desc')
             ->take(3)
-            ->get();
+            ->get(['id', 'title', 'type', 'category', 'file_path', 'file_type', 'is_active', 'sort_order', 'created_at', 'updated_at']);
 
         $events = \App\Models\Event::where('is_active', true)
             ->orderBy('event_date')
-            ->get();
+            ->take(100)
+            ->get(['id', 'title', 'event_date', 'time', 'location', 'department', 'type', 'is_active', 'created_at', 'updated_at']);
 
         return Inertia::render('dashboard', [
             'pinnedModules' => $pinnedModules,
@@ -82,7 +77,7 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
             ->orderBy('sort_order')
             ->orderBy('created_at', 'desc')
             ->take(5)
-            ->get();
+            ->get(['id', 'title', 'type', 'category', 'file_path', 'file_type', 'is_active', 'sort_order', 'created_at', 'updated_at']);
         return Inertia::render('hr-portal/index', ['recentAnnouncements' => $announcements]);
     });
     Route::get('/hr-portal/video-orientation', function () {
@@ -152,6 +147,7 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
     Route::put('/imiss/tickets/{ticket}/resolve', [ImissController::class, 'resolve'])->name('imiss.ticket.resolve');
     Route::put('/imiss/tickets/{ticket}/cancel', [ImissController::class, 'cancel'])->name('imiss.ticket.cancel');
     Route::put('/imiss/tickets/{ticket}/correction', [ImissController::class, 'correction'])->name('imiss.ticket.correction');
+    Route::get('/imiss/tickets/{ticket}/comments', [ImissController::class, 'getComments'])->name('imiss.ticket.comments.index');
     Route::post('/imiss/tickets/{ticket}/comments', [ImissController::class, 'storeComment'])->name('imiss.ticket.comments.store');
 
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
@@ -191,6 +187,7 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
     Route::inertia('/user-guide', 'modules/user-guide');
 
     Route::get('/directory', [DirectoryController::class, 'index']);
+    Route::get('/directory/print', [DirectoryController::class, 'printPdf']);
     Route::middleware(['imiss-section'])->group(function () {
         Route::get('/utilities/user-access', [UserAccessController::class, 'index']);
         Route::put('/utilities/user-access/{biometric_id}', [UserAccessController::class, 'update']);
@@ -210,8 +207,8 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
         Route::delete('/utilities/imiss-request-types/{imissRequestType}', [ImissRequestTypeController::class, 'destroy']);
 
         Route::get('/utilities/video-orientations', [\App\Http\Controllers\VideoOrientationController::class, 'index']);
-        Route::post('/utilities/video-orientations', [\App\Http\Controllers\VideoOrientationController::class, 'store']);
         Route::post('/utilities/video-orientations/reorder', [\App\Http\Controllers\VideoOrientationController::class, 'reorder'])->name('video-orientations.reorder');
+        Route::post('/utilities/video-orientations', [\App\Http\Controllers\VideoOrientationController::class, 'store']);
         Route::put('/utilities/video-orientations/{videoOrientation}', [\App\Http\Controllers\VideoOrientationController::class, 'update']); // Use POST via Inertia with _method=PUT to support file uploads
         Route::delete('/utilities/video-orientations/{videoOrientation}', [\App\Http\Controllers\VideoOrientationController::class, 'destroy']);
 
@@ -225,6 +222,8 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
         Route::post('/utilities/events', [\App\Http\Controllers\EventController::class, 'store']);
         Route::put('/utilities/events/{event}', [\App\Http\Controllers\EventController::class, 'update']);
         Route::delete('/utilities/events/{event}', [\App\Http\Controllers\EventController::class, 'destroy']);
+
+        Route::get('/utilities/audit-logs', [AuditLogController::class, 'index']);
     });
 
     Route::inertia('/cert', 'modules/cert');
@@ -242,6 +241,8 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
             return response()->json(['status' => 'error', 'message' => 'Failed to reach legacy server']);
         }
     });
+
+    Route::get('/api/avatar/{bioid}', [\App\Http\Controllers\AvatarController::class, 'show'])->name('user.avatar');
 });
 
 Route::get(

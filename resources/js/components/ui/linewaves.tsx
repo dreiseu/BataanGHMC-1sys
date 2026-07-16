@@ -166,9 +166,13 @@ export default function LineWaves({
     useEffect(() => {
         if (!containerRef.current) return;
         const container = containerRef.current;
-        const renderer = new Renderer({ alpha: true, premultipliedAlpha: false });
-        const gl = renderer.gl;
-        gl.clearColor(0, 0, 0, 0);
+        
+        try {
+            const renderer = new Renderer({ alpha: true, premultipliedAlpha: false });
+            const gl = renderer.gl;
+            if (!gl) return;
+            
+            gl.clearColor(0, 0, 0, 0);
 
         let program: Program;
         let currentMouse = [0.5, 0.5];
@@ -256,9 +260,15 @@ export default function LineWaves({
                 gl.canvas.removeEventListener('mousemove', handleMouseMove);
                 gl.canvas.removeEventListener('mouseleave', handleMouseLeave);
             }
-            container.removeChild(gl.canvas);
+            if (container.contains(gl.canvas)) {
+                container.removeChild(gl.canvas);
+            }
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         };
+        } catch (error) {
+            console.warn('WebGL not supported or failed to initialize in LineWaves:', error);
+            return () => {};
+        }
     }, [speed, innerLineCount, outerLineCount, warpIntensity, rotation, edgeFadeWidth, colorCycleSpeed, brightness, color1, color2, color3, enableMouseInteraction, mouseInfluence]);
 
     return (

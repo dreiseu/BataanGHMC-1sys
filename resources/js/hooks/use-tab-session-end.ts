@@ -26,7 +26,8 @@ export function useTabSessionEnd() {
             if (isSpaNavigating.current) return;
 
             // sendBeacon works reliably even during page unload
-            navigator.sendBeacon('/session-end');
+            // DISABLED: This triggers on page refresh (F5), causing users to be logged out unintentionally.
+            // navigator.sendBeacon('/session-end');
         };
 
         window.addEventListener('pagehide', handlePageHide);

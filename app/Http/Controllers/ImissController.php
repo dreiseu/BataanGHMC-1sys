@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\HospitalSystem;
 use App\Models\ImissTicket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -15,20 +16,27 @@ class ImissController extends Controller
 {
     public function index()
     {
-        $systems = HospitalSystem::all();
-
         // Assuming Auth::user() has a bio_id property, otherwise fallback to id
-        $bioId = Auth::user()->bio_id ?? Auth::id();
+        $bioId = (string) (Auth::user()->bio_id ?? Auth::id());
 
-        $tickets = ImissTicket::with('comments')
+        // Never load full comments on page load or polls — comments are loaded on-demand
+        // via GET /imiss/tickets/{id}/comments when the user opens a ticket panel.
+        // This eliminates the most expensive query (nvarchar(max) LOB reads) from all
+        // concurrent page loads and 60-second polls.
+        $tickets = ImissTicket::withCount('comments')
             ->where('bio_id', $bioId)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->sortByDesc('created_at')
+            ->values();
 
-        $requestTypes = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('imiss_request_types')) {
-            $requestTypes = \App\Models\ImissRequestType::where('is_active', true)->get();
-        } else {
+        $requestTypes = Cache::remember('imiss_request_types_active', 86400, function () {
+            if (\Illuminate\Support\Facades\Schema::hasTable('imiss_request_types')) {
+                return \App\Models\ImissRequestType::where('is_active', true)->get()->toArray();
+            }
+            return [];
+        });
+
+        if (empty($requestTypes)) {
             // Fallback before migration is run
             $requestTypes = [
                 (object)['value' => 'hardware', 'label' => 'Hardware Repair / Issue'],
@@ -42,7 +50,6 @@ class ImissController extends Controller
         }
 
         return Inertia::render('imiss/index', [
-            'systems' => $systems,
             'tickets' => $tickets,
             'requestTypes' => $requestTypes,
         ]);
@@ -63,15 +70,15 @@ class ImissController extends Controller
 
         $bioId = Auth::user()->bio_id ?? Auth::id();
 
-        // Generate Ticket Number (e.g., TKT-2026-001)
-        $year = date('Y');
-        $latestTicket = ImissTicket::where('ticket_number', 'like', "TKT-{$year}-%")->orderBy('id', 'desc')->first();
+        // Generate Ticket Number (e.g., TKT-260715-001)
+        $datePrefix = date('ymd');
+        $latestTicket = ImissTicket::where('ticket_number', 'like', "TKT-{$datePrefix}-%")->orderBy('id', 'desc')->first();
         $nextNumber = 1;
         if ($latestTicket) {
             $parts = explode('-', $latestTicket->ticket_number);
             $nextNumber = intval(end($parts)) + 1;
         }
-        $ticketNumber = sprintf("TKT-%s-%03d", $year, $nextNumber);
+        $ticketNumber = sprintf("TKT-%s-%03d", $datePrefix, $nextNumber);
 
         $attachmentPaths = [];
         if ($request->hasFile('attachments')) {
@@ -164,7 +171,10 @@ class ImissController extends Controller
 
     public function admin()
     {
-        $tickets = ImissTicket::with('comments')->orderBy('created_at', 'desc')->get();
+        $tickets = ImissTicket::with('comments')
+            ->get()
+            ->sortByDesc('created_at')
+            ->values();
         return Inertia::render('imiss/admin', [
             'tickets' => $tickets,
         ]);
@@ -233,6 +243,35 @@ class ImissController extends Controller
         return back();
     }
 
+    /**
+     * Return comments for a single ticket — called on-demand when the user opens the ticket panel.
+     * Keeping this out of the main index() load eliminates concurrent LOB I/O on page load/polls.
+     */
+    public function getComments(ImissTicket $ticket)
+    {
+        // Release session file lock immediately for read-only request
+        session_write_close();
+
+        $bioId = (string) (Auth::user()->bio_id ?? Auth::id());
+
+        // Ensure the ticket belongs to this user (or they are an admin/tech)
+        if ($ticket->bio_id != $bioId) {
+            $authority = \Illuminate\Support\Facades\DB::table('UserAuthority')
+                ->where('BiometricID', $bioId)
+                ->first(['role']);
+            if (!$authority || !in_array($authority->role, ['admin', 'imiss_tech', 'imiss_admin'])) {
+                abort(403);
+            }
+        }
+
+        $comments = $ticket->comments()
+            ->select('id', 'ticket_id', 'sender_bioid', 'sender_name', 'message', 'attachments', 'created_at')
+            ->get()
+            ->toArray();
+
+        return response()->json($comments);
+    }
+
     public function storeComment(Request $request, ImissTicket $ticket)
     {
         $validated = $request->validate([
@@ -285,6 +324,10 @@ class ImissController extends Controller
             'attachments' => count($attachmentPaths) > 0 ? $attachmentPaths : null,
         ]);
 
+        // Clear ticket comments cache when a new comment is posted
+        Cache::forget("ticket_comments_{$ticket->id}");
+        Cache::forget("ticket_comments_count_{$ticket->id}");
+
         if ($ticket->bio_id != $bioId) {
             \App\Models\UserNotification::create([
                 'bioid' => $ticket->bio_id,
@@ -299,6 +342,9 @@ class ImissController extends Controller
 
     public function attachment($file)
     {
+        // Release session lock immediately for read-only request
+        session_write_close();
+
         // Prevent path traversal attacks
         $file = basename($file);
 
@@ -313,6 +359,9 @@ class ImissController extends Controller
 
     public function openCommentAttachment($file)
     {
+        // Release session lock immediately for read-only request
+        session_write_close();
+
         $file = basename($file);
 
         $path = storage_path(
@@ -332,25 +381,27 @@ class ImissController extends Controller
             try {
                 $cmsUser = env('CMS_USERNAME');
                 $cmsPass = env('CMS_PASSWORD');
+                $cmsDomain = env('CMS_DOMAIN', 'CMS-PLUS-SVR');
+
+                // Disconnect from database before making slow external HTTP request
+                \Illuminate\Support\Facades\DB::disconnect();
 
                 $ch = curl_init($cmsUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3); // 3 seconds connection timeout
+                curl_setopt($ch, CURLOPT_TIMEOUT, 5);        // 5 seconds total timeout
                 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
                 
-                // First try anonymous access
+                if ($cmsUser && $cmsPass) {
+                    $authStr = $cmsDomain ? $cmsDomain . '\\' . $cmsUser . ':' . $cmsPass : $cmsUser . ':' . $cmsPass;
+                    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_NTLM | CURLAUTH_BASIC);
+                    curl_setopt($ch, CURLOPT_USERPWD, $authStr);
+                }
+                
                 $responseBody = curl_exec($ch);
                 $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-                
-                // If unauthorized and we have credentials, try again with auth
-                if ($statusCode == 401 && $cmsUser && $cmsPass) {
-                    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
-                    curl_setopt($ch, CURLOPT_USERPWD, $cmsUser . ':' . $cmsPass);
-                    $responseBody = curl_exec($ch);
-                    $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-                }
                 
                 curl_close($ch);
                 

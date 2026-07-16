@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\HrDocument;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -12,13 +13,22 @@ class HrDocumentController extends Controller
 {
     public function index()
     {
-        $documents = HrDocument::orderBy('type')->orderBy('sort_order')->orderBy('created_at', 'desc')->get();
+        $documents = Cache::remember('hr_documents_all', 3600, function () {
+            return HrDocument::get()
+                ->sortBy([
+                    ['type', 'asc'],
+                    ['sort_order', 'asc'],
+                    ['created_at', 'desc'],
+                ])
+                ->values()
+                ->toArray();
+        });
         return Inertia::render('utilities/hr-documents', [
             'entries' => $documents
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AuditLogService $auditLog)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -47,12 +57,21 @@ class HrDocumentController extends Controller
             $data['file_type'] = strtoupper($file->getClientOriginalExtension());
         }
 
-        HrDocument::create($data);
+        $document = HrDocument::create($data);
 
+        $auditLog->log(
+            action: 'created',
+            auditableType: 'hr_document',
+            auditableId: (string) $document->id,
+            auditableLabel: $document->title,
+            newValues: $document->toArray(),
+        );
+
+        Cache::forget('hr_documents_all');
         return redirect()->back()->with('success', 'Document added successfully.');
     }
 
-    public function update(Request $request, HrDocument $hrDocument)
+    public function update(Request $request, HrDocument $hrDocument, AuditLogService $auditLog)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -63,6 +82,8 @@ class HrDocumentController extends Controller
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ]);
+
+        $oldValues = $hrDocument->toArray();
 
         $data = [
             'title' => $validated['title'],
@@ -87,22 +108,46 @@ class HrDocumentController extends Controller
         }
 
         $hrDocument->update($data);
+        $hrDocument->refresh();
 
+        $auditLog->log(
+            action: 'updated',
+            auditableType: 'hr_document',
+            auditableId: (string) $hrDocument->id,
+            auditableLabel: $hrDocument->title,
+            oldValues: $oldValues,
+            newValues: $hrDocument->toArray(),
+        );
+
+        Cache::forget('hr_documents_all');
         return redirect()->back()->with('success', 'Document updated successfully.');
     }
 
-    public function destroy(HrDocument $hrDocument)
+    public function destroy(HrDocument $hrDocument, AuditLogService $auditLog)
     {
+        $oldValues = $hrDocument->toArray();
+        $label = $hrDocument->title;
+        $id = (string) $hrDocument->id;
+
         if ($hrDocument->file_path && Storage::disk('public')->exists($hrDocument->file_path)) {
             Storage::disk('public')->delete($hrDocument->file_path);
         }
         
         $hrDocument->delete();
 
+        $auditLog->log(
+            action: 'deleted',
+            auditableType: 'hr_document',
+            auditableId: $id,
+            auditableLabel: $label,
+            oldValues: $oldValues,
+        );
+
+        Cache::forget('hr_documents_all');
         return redirect()->back()->with('success', 'Document deleted successfully.');
     }
 
-    public function reorder(Request $request)
+    public function reorder(Request $request, AuditLogService $auditLog)
     {
         $validated = $request->validate([
             'ordered_ids' => 'required|array',
@@ -113,6 +158,14 @@ class HrDocumentController extends Controller
             HrDocument::where('id', $id)->update(['sort_order' => $index]);
         }
 
+        $auditLog->log(
+            action: 'reordered',
+            auditableType: 'hr_document',
+            auditableLabel: 'HR Documents',
+            newValues: ['ordered_ids' => $validated['ordered_ids']],
+        );
+
+        Cache::forget('hr_documents_all');
         return redirect()->back()->with('success', 'Order updated successfully.');
     }
 }

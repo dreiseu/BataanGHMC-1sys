@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,13 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Auth::provider('soap', function ($app, array $config) {
             return new \App\Auth\SoapUserProvider();
         });
+
+        // Log slow queries (> 2 seconds) to find the cause of 30s timeout
+        \Illuminate\Support\Facades\DB::listen(function ($query) {
+            if ($query->time > 2000) {
+                \Illuminate\Support\Facades\Log::warning("Slow query ({$query->time}ms): {$query->sql}", $query->bindings);
+            }
+        });
     }
 
     /**
@@ -40,6 +48,10 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        Carbon::serializeUsing(function ($date) {
+            return $date->timezone(config('app.timezone'))->toIso8601String();
+        });
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

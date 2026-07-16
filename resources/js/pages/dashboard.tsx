@@ -72,6 +72,18 @@ const SERVICES = [
         href: '/qr-pass',
         icon: QrCode,
     },
+    {
+        title: 'Directory',
+        description: 'Hospital telephone and contact directory.',
+        href: '/directory',
+        icon: BookOpen,
+    },
+    {
+        title: 'User Guide',
+        description: 'User documentation and support guides.',
+        href: '/user-guide',
+        icon: BookCopy,
+    },
 ];
 
 const CYBER_TIPS = [
@@ -114,16 +126,10 @@ export default function Dashboard() {
                 SysIcon = iconList[index % iconList.length];
             }
 
-            const isEmployeePortal = nameLower.includes('employee') && nameLower.includes('portal');
-            const is1App = nameLower === '1app' || nameLower.includes('1app');
-            const isIhomp = nameLower === 'ihomp cms' || nameLower.includes('ihomp');
-            const isEfms = nameLower.includes('efms');
-            const isSsoSystem = isEmployeePortal || is1App || isIhomp || isEfms;
-
             return {
                 title: sys.name,
                 description: SysDesc,
-                href: isSsoSystem ? `/sso-portal?system=${encodeURIComponent(sys.name)}` : sys.url,
+                href: sys.is_sso ? `/sso-portal?system=${encodeURIComponent(sys.name)}` : sys.url,
                 icon: SysIcon,
             };
         });
@@ -179,6 +185,7 @@ export default function Dashboard() {
 
     const displayModules = ALL_MODULES.filter(m => savedPins.includes(m.href));
     const recentModules = recentModulesHrefs.map(href => ALL_MODULES.find(m => m.href === href)).filter(Boolean);
+    const employeePortalModule = ALL_MODULES.find(m => m.title === "Employee's Portal");
 
     return (
         <>
@@ -271,8 +278,8 @@ export default function Dashboard() {
 
                             <div className="relative z-10 mt-auto">
                                 <a
-                                    href="/sso-portal?system=Employee's%20Portal"
-                                    onClick={() => saveRecentModule("/sso-portal?system=Employee's%20Portal")}
+                                    href={employeePortalModule?.href || "/sso-portal?system=Employee's%20Portal"}
+                                    onClick={() => saveRecentModule(employeePortalModule?.href || "/sso-portal?system=Employee's%20Portal")}
                                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-[#0F172A] py-3 text-sm font-bold transition-all shadow-lg hover:shadow-[#00D4FF]/30 active:scale-[0.98]"
                                 >
                                     Launch System <ChevronRight className="h-4 w-4" />

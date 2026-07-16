@@ -40,14 +40,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
-const DEFAULT_SYSTEMS = [
-    'DiCe',
-    'EFMS Job Order Request System',
-    "Employee's Portal",
-    'Health & Wellness Clinic',
-    'Parking Management System',
-    'PGS Online System'
-];
+
 
 // Reusable combobox filter component — search is inline in the trigger input
 function FilterCombobox({
@@ -467,7 +460,7 @@ export default function UserAccess() {
                     <div className="p-6 overflow-y-auto flex-1 emr-scrollbar">
                         <div className="grid gap-3 sm:grid-cols-2">
                             {systems && systems.map((system: any) => {
-                                const isDefault = DEFAULT_SYSTEMS.includes(system.name);
+                                const isDefault = system.is_default;
                                 const isChecked = isDefault || selectedSystems.includes(system.id);
                                 return (
                                     <div

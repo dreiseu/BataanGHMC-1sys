@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import dohLogoUrl from '../../../images/DOH.png';
 import bghmcLogoUrl from '../../../images/BGHMC.png';
 import bagongPilipinasLogoUrl from '../../../images/Bagong_Pilipinas.png';
+import OnesysLogoUrl from '../../../images/1SYS.png';
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
@@ -55,15 +56,14 @@ export default function Login() {
 
                     {/* Bottom Section */}
                     <div className="login-bottom">
-                        <div className="system-titles">
+                        <div className="system-titles flex flex-col items-center">
+                            <img src={OnesysLogoUrl} alt="1SYS Logo" className="onesys-logo h-40 w-auto object-contain my-2 drop-shadow-sm" />
                             <span className="hospital-name">Bataan General Hospital and Medical Center</span>
                             <h1 className="system-name">
-                                All-in-One<br />
-                                System
+                                All-in-One System
                             </h1>
                             <p className="system-motto">
                                 Unified Access Portal
-
                             </p>
                         </div>
 

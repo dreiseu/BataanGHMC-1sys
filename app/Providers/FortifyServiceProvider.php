@@ -26,7 +26,7 @@ class FortifyServiceProvider extends ServiceProvider
                 return new class implements \Laravel\Fortify\Contracts\LogoutResponse {
                     public function toResponse($request)
                     {
-                        return \Inertia\Inertia::location('/login');
+                        return redirect('/login');
                     }
                 };
             }
@@ -38,7 +38,7 @@ class FortifyServiceProvider extends ServiceProvider
                 return new class implements \Laravel\Fortify\Contracts\LoginResponse {
                     public function toResponse($request)
                     {
-                        return \Inertia\Inertia::location('/dashboard');
+                        return redirect()->intended('/dashboard');
                     }
                 };
             }

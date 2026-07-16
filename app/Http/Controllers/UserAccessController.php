@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\UserAuthority;
 use App\Models\HospitalSystem;
+use App\Services\AuditLogService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -69,7 +70,7 @@ class UserAccessController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $biometricId)
+    public function update(Request $request, string $biometricId, AuditLogService $auditLog)
     {
         $request->validate([
             'systems' => ['present', 'array'],
@@ -94,8 +95,12 @@ class UserAccessController extends Controller
                 $user->FullName = trim("{$hrisEmp->FirstName}{$middle}{$hrisEmp->LastName}");
             }
         }
-        
+
         $permissions = $user->permissions ?? [];
+        $oldSystemPermissions = array_values(array_filter(
+            $permissions,
+            fn ($permission) => str_starts_with($permission, 'system:')
+        ));
         
         // Remove existing system access
         $permissions = array_filter($permissions, function ($permission) {
@@ -110,6 +115,20 @@ class UserAccessController extends Controller
         // Re-index array
         $user->permissions = array_values($permissions);
         $user->save();
+
+        $newSystemPermissions = array_map(
+            fn ($systemId) => "system:{$systemId}",
+            $request->systems
+        );
+
+        $auditLog->log(
+            action: 'updated',
+            auditableType: 'user_access',
+            auditableId: $biometricId,
+            auditableLabel: $user->FullName,
+            oldValues: ['systems' => $oldSystemPermissions],
+            newValues: ['systems' => $newSystemPermissions],
+        );
 
         return back();
     }

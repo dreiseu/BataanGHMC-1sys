@@ -22,7 +22,7 @@ import {
 
 import dohLogoUrl from '../../../images/DOH.png';
 import bghmcLogoUrl from '../../../images/BGHMC.png';
-import bagongPilipinasLogoUrl from '../../../images/Bagong_Pilipinas.png';
+import bagongPilipinasLogoUrl from '../../../images/Bagong_Pilipinas_logo.png';
 
 type DirectoryEntry = {
     id: number;
@@ -121,54 +121,54 @@ export default function Directory({ entries }: Props) {
                     <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#1E293B] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
 
-                    <div className="relative z-10 w-full max-w-3xl">
-                        <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm">
-                            BataanGHMC & BUCAS
-                        </p>
-                        <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl drop-shadow-md">
-                            Hospital Directory
-                        </h1>
-                        <p className="mt-3 text-base text-white/90 leading-relaxed font-medium mb-6">
-                            Search for department, ward, and office local numbers.
-                        </p>
+                    <div className="relative z-10 w-full flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                        <div className="w-full max-w-3xl">
+                            <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm">
+                                BataanGHMC & BUCAS
+                            </p>
+                            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl drop-shadow-md">
+                                Hospital Directory
+                            </h1>
+                            <p className="mt-3 text-base text-white/90 leading-relaxed font-medium mb-6">
+                                Search for department, ward, and office local numbers.
+                            </p>
 
-                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
-                            <div className="flex-1 flex items-center gap-3 rounded-2xl border border-white/20 bg-black/20 px-4 py-3 shadow-inner backdrop-blur-md transition-colors focus-within:border-[#00D4FF]/50 focus-within:bg-black/30 w-full">
-                                <Search className="h-5 w-5 text-[#00D4FF]" />
-                                <input
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search department or local number..."
-                                    className="w-full bg-transparent text-white placeholder-white/50 outline-none text-base"
-                                />
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                                <div className="flex-1 flex items-center gap-3 rounded-2xl border border-white/20 bg-black/20 px-4 py-3 shadow-inner backdrop-blur-md transition-colors focus-within:border-[#00D4FF]/50 focus-within:bg-black/30 w-full">
+                                    <Search className="h-5 w-5 text-[#00D4FF]" />
+                                    <input
+                                        value={search}
+                                        onChange={(event) => setSearch(event.target.value)}
+                                        placeholder="Search department or local number..."
+                                        className="w-full bg-transparent text-white placeholder-white/50 outline-none text-base"
+                                    />
+                                </div>
+
+                                <div className="w-full sm:w-52 dark">
+                                    <Select
+                                        value={sectionFilter}
+                                        onValueChange={setSectionFilter}
+                                    >
+                                        <SelectTrigger className="w-full cursor-pointer rounded-2xl border-white/20 bg-black/20 text-white h-[50px] shadow-inner backdrop-blur-md focus:ring-[#00D4FF]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all" className="cursor-pointer">All Sections</SelectItem>
+                                            <SelectItem value="BataanGHMC" className="cursor-pointer">BataanGHMC</SelectItem>
+                                            <SelectItem value="BUCAS" className="cursor-pointer">BUCAS</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
-
-                            <div className="w-full sm:w-52 dark">
-                                <Select
-                                    value={sectionFilter}
-                                    onValueChange={setSectionFilter}
-                                >
-                                    <SelectTrigger className="w-full cursor-pointer rounded-2xl border-white/20 bg-black/20 text-white h-[50px] shadow-inner backdrop-blur-md focus:ring-[#00D4FF]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all" className="cursor-pointer">All Sections</SelectItem>
-                                        <SelectItem value="BataanGHMC" className="cursor-pointer">BataanGHMC</SelectItem>
-                                        <SelectItem value="BUCAS" className="cursor-pointer">BUCAS</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* 
-                            <Button
-                                onClick={() => window.print()}
-                                className="w-full sm:w-auto h-[50px] rounded-2xl bg-[#00D4FF] hover:bg-[#00D4FF]/80 text-[#0F172A] font-bold px-6 shadow-[0_0_15px_rgba(0,212,255,0.3)] transition-all hover:scale-105"
-                            >
-                                <Printer className="w-5 h-5 mr-2" />
-                                Print
-                            </Button>
-                            */}
                         </div>
+
+                        <Button
+                            onClick={() => window.open('/directory/print', '_blank')}
+                            className="w-full lg:w-auto h-[50px] rounded-2xl bg-[#00D4FF] hover:bg-[#00D4FF]/80 text-[#0F172A] font-bold px-6 shadow-[0_0_15px_rgba(0,212,255,0.3)] transition-all hover:scale-105 cursor-pointer shrink-0"
+                        >
+                            <Printer className="w-5 h-5 mr-2" />
+                            Print
+                        </Button>
                     </div>
                 </section>
 
@@ -178,8 +178,22 @@ export default function Directory({ entries }: Props) {
                     </div>
                 </div>
 
-                {/* The New PDF-Like Document View (Replacing the old table) */}
-                <div className="overflow-hidden rounded-2xl border bg-white shadow-xl print:shadow-none print:border-none print:p-0 print:m-0 font-sans p-6 sm:p-10">
+                {/* Global print style for pagination */}
+                <style>{`
+                    @media print {
+                        @page {
+                            size: portrait;
+                            margin: 10mm;
+                        }
+                        tr, table {
+                            break-inside: avoid;
+                            page-break-inside: avoid;
+                        }
+                    }
+                `}</style>
+
+                {/* The New PDF-Like Document View */}
+                <div id="directory-print-area" className="overflow-hidden rounded-2xl border bg-white shadow-xl print:shadow-none print:border print:border-black print:rounded-none font-sans p-6 sm:p-10 print:p-4">
                     {/* Header */}
                     <div className="flex flex-col items-center text-center mb-6">
                         <div className="flex items-center justify-between w-full mb-4 px-2 sm:px-8">

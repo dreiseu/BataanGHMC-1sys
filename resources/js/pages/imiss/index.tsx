@@ -34,8 +34,17 @@ import {
     Loader2,
     ArrowRight,
     Wrench,
-    WrenchIcon
+    WrenchIcon,
+    Calendar as CalendarIcon
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -133,6 +142,7 @@ interface TicketType {
         created_at: string;
         attachments?: string[];
     }[];
+    comments_count?: number;
     rating?: number;
     feedback_text?: string;
 }
@@ -145,17 +155,55 @@ type ImissRequestType = {
 };
 
 interface IMISSProps {
-    systems: HospitalSystemType[];
     tickets: TicketType[];
     requestTypes?: ImissRequestType[];
 }
 
-export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProps) {
+const playNotificationSound = () => {
+    try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) return;
+        const audioCtx = new AudioContextClass();
+        const playChime = (startTime: number) => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'triangle'; // Brighter/louder than sine
+            
+            // 3-note ascending chime
+            oscillator.frequency.setValueAtTime(587.33, startTime);       // D5
+            oscillator.frequency.setValueAtTime(880, startTime + 0.15);   // A5
+            oscillator.frequency.setValueAtTime(1174.66, startTime + 0.3); // D6
+
+            // Envelope: peak at 1.0, fade out over 1 second
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(1.0, startTime + 0.05);
+            gainNode.gain.setValueAtTime(1.0, startTime + 0.3);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 1.0);
+
+            oscillator.start(startTime);
+            oscillator.stop(startTime + 1.0);
+        };
+
+        // Ring 3 times consecutively with a clear interval
+        playChime(audioCtx.currentTime);
+        playChime(audioCtx.currentTime + 1.5);
+        playChime(audioCtx.currentTime + 3.0);
+    } catch (e) {
+        console.error("Audio playback failed", e);
+    }
+};
+
+export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
     const requestTypeLabels: Record<string, string> = {};
     requestTypes.forEach(rt => requestTypeLabels[rt.value] = rt.label);
 
-    const { auth } = usePage<any>().props;
+    const { auth, hospital_systems } = usePage<any>().props;
     const user = auth?.user;
+    const systems: HospitalSystemType[] = hospital_systems || [];
 
     const [ssoStatus, setSsoStatus] = useState<'idle' | 'loading' | 'success'>('idle');
     const [currentSSOUrl, setCurrentSSOUrl] = useState('');
@@ -163,8 +211,35 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
     const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+    const [commentsLoading, setCommentsLoading] = useState(false);
 
     const prevTicketsRef = useRef<TicketType[]>(tickets);
+    const justSentMessageRef = useRef<boolean>(false);
+
+    const fetchComments = (ticketId: number) => {
+        setCommentsLoading(true);
+        fetch(`/imiss/tickets/${ticketId}/comments`)
+            .then(res => res.json())
+            .then(data => {
+                setSelectedTicket(prev => {
+                    if (prev && prev.id === ticketId) {
+                        return { ...prev, comments: data };
+                    }
+                    return prev;
+                });
+            })
+            .catch(err => console.error('Failed to load comments:', err))
+            .finally(() => setCommentsLoading(false));
+    };
+
+    // Fetch comments on-demand when a ticket panel is opened.
+    // Comments are no longer bundled in the page load to avoid slow LOB reads on every poll.
+    useEffect(() => {
+        if (!isDetailsOpen || !selectedTicket) return;
+        if (selectedTicket.comments) return; // already loaded, don't re-fetch
+
+        fetchComments(selectedTicket.id);
+    }, [isDetailsOpen, selectedTicket?.id]);
 
     useEffect(() => {
         if (isDetailsOpen && selectedTicket) {
@@ -180,7 +255,8 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                 }
             });
         }
-    }, [isDetailsOpen, selectedTicket]);
+    }, [isDetailsOpen, selectedTicket?.ticket_number]);
+
 
     useEffect(() => {
         // Restore unread toasts on page load
@@ -261,6 +337,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                 const oldTicket = prevTicketsRef.current.find(t => t.id === newTicket.id);
                 if (oldTicket) {
                     if (oldTicket.status !== newTicket.status) {
+                        playNotificationSound();
                         toast(`Ticket ${newTicket.ticket_number} Updated`, {
                             id: `status-${newTicket.ticket_number}`,
                             description: (
@@ -289,12 +366,15 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             onSuccess: () => window.dispatchEvent(new CustomEvent('refresh-notifications'))
                         });
                     }
-                    const oldCommentsLength = oldTicket.comments?.length || 0;
-                    const newCommentsLength = newTicket.comments?.length || 0;
+                    // On polls, backend returns comments_count (not full comments) to avoid LOB I/O.
+                    const oldCommentsLength = oldTicket.comments_count ?? oldTicket.comments?.length ?? 0;
+                    const newCommentsLength = newTicket.comments_count ?? newTicket.comments?.length ?? 0;
                     if (newCommentsLength > oldCommentsLength) {
-                        const newComments = newTicket.comments?.slice(oldCommentsLength) || [];
-                        const fromOthers = newComments.filter(c => c.sender_bioid !== user?.bioid);
-                        if (fromOthers.length > 0) {
+                        if (justSentMessageRef.current && newTicket.id === selectedTicket?.id) {
+                            // Message was sent by the current user themselves, so consume flag and skip notification
+                            justSentMessageRef.current = false;
+                        } else {
+                            playNotificationSound();
                             toast(`New Message on ${newTicket.ticket_number}`, {
                                 id: `msg-${newTicket.ticket_number}`,
                                 description: (
@@ -313,10 +393,11 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                 duration: 99999999,
                                 closeButton: true,
                             });
+                            
                             router.post('/notifications', {
                                 title: 'New Message',
-                                message: `You have a new message on ticket ${newTicket.ticket_number}`,
-                                link: '/imiss'
+                                message: `You have a new comment on ticket ${newTicket.ticket_number}`,
+                                link: `/imiss?ticket=${newTicket.ticket_number}`
                             }, {
                                 preserveScroll: true,
                                 preserveState: true,
@@ -331,16 +412,36 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
 
         if (selectedTicket) {
             const updated = tickets.find(t => t.id === selectedTicket.id);
-            if (updated) setSelectedTicket(updated);
+            if (updated) {
+                const oldCommentsLength = selectedTicket.comments?.length ?? selectedTicket.comments_count ?? 0;
+                const newCommentsLength = updated.comments_count ?? updated.comments?.length ?? 0;
+
+                if (newCommentsLength > oldCommentsLength) {
+                    // Fetch fresh comments when a new message is received in the background
+                    fetchComments(selectedTicket.id);
+                } else {
+                    // If the poll didn't return full comments (only comments_count),
+                    // preserve the existing comments in state so the chat window doesn't lose messages.
+                    if (!updated.comments && selectedTicket.comments) {
+                        (updated as any).comments = selectedTicket.comments;
+                    }
+                    setSelectedTicket(updated);
+                }
+            }
         }
     }, [tickets]);
 
     // Poll for ticket updates so the UI reflects admin changes (like marking as Accomplished)
     useEffect(() => {
-        const interval = setInterval(() => {
-            // @ts-ignore
-            router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true });
-        }, 15000); // Poll every 15 seconds
+        const poll = () => {
+            router.reload({
+                only: ['tickets'],
+                preserveScroll: true,
+                preserveState: true,
+            } as any);
+        };
+
+        const interval = setInterval(poll, 15000); // Poll every 15 seconds
         return () => clearInterval(interval);
     }, []);
 
@@ -464,6 +565,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                 setIsSubmitDialogOpen(false);
                 setActiveTicketIndex(0);
                 reset();
+                toast.success('Job order request submitted successfully!');
             }
         });
     };
@@ -475,12 +577,16 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
         const inputElement = document.getElementById('chat-input');
         if (inputElement) inputElement.focus();
 
-        commentForm.post(`/imiss/tickets/${selectedTicket.id}/comments`, {
+        const ticketId = selectedTicket.id;
+        justSentMessageRef.current = true; // Flag that this message was sent by the current user
+
+        commentForm.post(`/imiss/tickets/${ticketId}/comments`, {
             preserveScroll: true,
             preserveState: true,
             forceFormData: true,
             onSuccess: () => {
                 commentForm.reset();
+                fetchComments(ticketId);
             }
         });
     };
@@ -495,13 +601,31 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
 
     const [historySearch, setHistorySearch] = useState('');
     const [historyStatusFilter, setHistoryStatusFilter] = useState('All');
+    const [historyDateFilter, setHistoryDateFilter] = useState<Date | undefined>(undefined);
 
     const filteredHistoryTickets = tickets.filter(t => {
         const typeLabel = requestTypeLabels[t.request_type] || t.request_type;
         const matchesSearch = t.ticket_number.toLowerCase().includes(historySearch.toLowerCase()) ||
             typeLabel.toLowerCase().includes(historySearch.toLowerCase());
         const matchesStatus = historyStatusFilter === 'All' || t.status === historyStatusFilter;
-        return matchesSearch && matchesStatus;
+
+        let matchesDate = true;
+        if (historyDateFilter) {
+            const dateObj = new Date(t.created_at);
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const ticketDateStr = `${year}-${month}-${day}`;
+
+            const filterYear = historyDateFilter.getFullYear();
+            const filterMonth = String(historyDateFilter.getMonth() + 1).padStart(2, '0');
+            const filterDay = String(historyDateFilter.getDate()).padStart(2, '0');
+            const filterDateStr = `${filterYear}-${filterMonth}-${filterDay}`;
+
+            matchesDate = ticketDateStr === filterDateStr;
+        }
+
+        return matchesSearch && matchesStatus && matchesDate;
     });
 
     const filteredSystems = systems.filter(s =>
@@ -752,28 +876,28 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
 
                                             {(() => {
                                                 const timeline = [];
-                                                if (activeTicket.resolved_at) timeline.push({ status: 'Resolved', date: activeTicket.resolved_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
-                                                else if (activeTicket.status === 'Resolved') timeline.push({ status: 'Resolved', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                                if (activeTicket.resolved_at) timeline.push({ status: 'Resolved', date: activeTicket.resolved_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
+                                                else if (activeTicket.status === 'Resolved') timeline.push({ status: 'Resolved', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
 
-                                                if (activeTicket.cancelled_at) timeline.push({ status: 'Cancelled', date: activeTicket.cancelled_at, icon: X, color: 'bg-zinc-500 text-white' });
-                                                else if (activeTicket.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: activeTicket.updated_at || activeTicket.created_at, icon: X, color: 'bg-zinc-500 text-white' });
+                                                if (activeTicket.cancelled_at) timeline.push({ status: 'Cancelled', date: activeTicket.cancelled_at, icon: X, color: 'bg-[#00D4FF] text-white' });
+                                                else if (activeTicket.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: activeTicket.updated_at || activeTicket.created_at, icon: X, color: 'bg-[#00D4FF] text-white' });
 
-                                                if (activeTicket.finished_at) timeline.push({ status: 'Accomplished', date: activeTicket.finished_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
-                                                else if (['Accomplished', 'Resolved'].includes(activeTicket.status)) timeline.push({ status: 'Accomplished', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                                if (activeTicket.finished_at) timeline.push({ status: 'Accomplished', date: activeTicket.finished_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
+                                                else if (['Accomplished', 'Resolved'].includes(activeTicket.status)) timeline.push({ status: 'Accomplished', date: activeTicket.updated_at || activeTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
 
-                                                if (activeTicket.returned_at) timeline.push({ status: 'Returned', date: activeTicket.returned_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
-                                                else if (activeTicket.status === 'Returned') timeline.push({ status: 'Returned', date: activeTicket.updated_at || activeTicket.created_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+                                                if (activeTicket.returned_at) timeline.push({ status: 'Returned', date: activeTicket.returned_at, icon: AlertCircle, color: 'bg-[#00D4FF] text-white' });
+                                                else if (activeTicket.status === 'Returned') timeline.push({ status: 'Returned', date: activeTicket.updated_at || activeTicket.created_at, icon: AlertCircle, color: 'bg-[#00D4FF] text-white' });
 
                                                 if (activeTicket.accepted_at) timeline.push({ status: 'In Progress', date: activeTicket.accepted_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
                                                 else if (['In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(activeTicket.status)) timeline.push({ status: 'In Progress', date: activeTicket.updated_at || activeTicket.created_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
 
-                                                if (activeTicket.endorsed_at) timeline.push({ status: 'Endorsed', date: activeTicket.endorsed_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
-                                                else if (activeTicket.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: activeTicket.updated_at || activeTicket.created_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+                                                if (activeTicket.endorsed_at) timeline.push({ status: 'Endorsed', date: activeTicket.endorsed_at, icon: ArrowRight, color: 'bg-[#00D4FF] text-white' });
+                                                else if (activeTicket.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: activeTicket.updated_at || activeTicket.created_at, icon: ArrowRight, color: 'bg-[#00D4FF] text-white' });
 
                                                 if (activeTicket.reviewed_at) timeline.push({ status: 'Under Review', date: activeTicket.reviewed_at, icon: Search, color: 'bg-[#00D4FF] text-white' });
                                                 else if (['Under Review', 'Endorsed', 'In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(activeTicket.status)) timeline.push({ status: 'Under Review', date: activeTicket.updated_at || activeTicket.created_at, icon: Search, color: 'bg-[#00D4FF] text-white' });
 
-                                                timeline.push({ status: 'Ticket Submitted', date: activeTicket.created_at, icon: CheckCircle2, color: 'bg-muted text-muted-foreground' });
+                                                timeline.push({ status: 'Ticket Submitted', date: activeTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
                                                 timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
                                                 return (
@@ -967,7 +1091,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <label className="text-sm font-semibold text-foreground">
-                                    Local Number <span className="text-muted-foreground font-normal">(Optional)</span>
+                                    Local Number
                                 </label>
                                 <div className="relative w-full">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
@@ -982,12 +1106,12 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             </div>
                             <div className="grid gap-2">
                                 <label className="text-sm font-semibold text-foreground">
-                                    PC Number <span className="text-muted-foreground font-normal">(Optional)</span>
+                                    PC Name / Host Name <span className="text-muted-foreground font-normal">(Optional)</span>
                                 </label>
                                 <div className="relative w-full">
                                     <Monitor className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
                                     <Input
-                                        placeholder="e.g., PC-01"
+                                        placeholder=""
                                         className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.pc_number}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('pc_number', e.target.value)}
@@ -1175,7 +1299,7 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                         <span>Submitted on {selectedTicket && new Date(selectedTicket.created_at).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
                                         {selectedTicket?.accepted_by && (
                                             <span className="inline-flex items-center gap-1.5 bg-black/20 w-fit px-2 py-0.5 rounded-full font-medium mt-1 border border-white/5">
-                                                Assigned to (BioID): {selectedTicket.accepted_by}
+                                                Assigned to: {selectedTicket.accepted_by}
                                             </span>
                                         )}
                                     </div>
@@ -1206,23 +1330,23 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             <h4 className="text-sm font-bold text-foreground mb-4 uppercase tracking-wider">Activity Feed</h4>
                             {(() => {
                                 const timeline = [];
-                                if (selectedTicket?.resolved_at) timeline.push({ status: 'Resolved', date: selectedTicket.resolved_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
-                                else if (selectedTicket?.status === 'Resolved') timeline.push({ status: 'Resolved', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                if (selectedTicket?.resolved_at) timeline.push({ status: 'Resolved', date: selectedTicket.resolved_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket?.status === 'Resolved') timeline.push({ status: 'Resolved', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
 
-                                if (selectedTicket?.cancelled_at) timeline.push({ status: 'Cancelled', date: selectedTicket.cancelled_at, icon: X, color: 'bg-zinc-500 text-white' });
-                                else if (selectedTicket?.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: selectedTicket.updated_at || selectedTicket.created_at, icon: X, color: 'bg-zinc-500 text-white' });
+                                if (selectedTicket?.cancelled_at) timeline.push({ status: 'Cancelled', date: selectedTicket.cancelled_at, icon: X, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket?.status === 'Cancelled') timeline.push({ status: 'Cancelled', date: selectedTicket.updated_at || selectedTicket.created_at, icon: X, color: 'bg-[#00D4FF] text-white' });
 
-                                if (selectedTicket?.finished_at) timeline.push({ status: 'Accomplished', date: selectedTicket.finished_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
-                                else if (selectedTicket && ['Accomplished', 'Resolved'].includes(selectedTicket.status)) timeline.push({ status: 'Accomplished', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-emerald-500 text-white' });
+                                if (selectedTicket?.finished_at) timeline.push({ status: 'Accomplished', date: selectedTicket.finished_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket && ['Accomplished', 'Resolved'].includes(selectedTicket.status)) timeline.push({ status: 'Accomplished', date: selectedTicket.updated_at || selectedTicket.created_at, icon: CheckCircle2, color: 'bg-[#00D4FF] text-white' });
 
-                                if (selectedTicket?.returned_at) timeline.push({ status: 'Returned', date: selectedTicket.returned_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
-                                else if (selectedTicket?.status === 'Returned') timeline.push({ status: 'Returned', date: selectedTicket.updated_at || selectedTicket.created_at, icon: AlertCircle, color: 'bg-amber-500 text-white' });
+                                if (selectedTicket?.returned_at) timeline.push({ status: 'Returned', date: selectedTicket.returned_at, icon: AlertCircle, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket?.status === 'Returned') timeline.push({ status: 'Returned', date: selectedTicket.updated_at || selectedTicket.created_at, icon: AlertCircle, color: 'bg-[#00D4FF] text-white' });
 
                                 if (selectedTicket?.accepted_at) timeline.push({ status: 'In Progress', date: selectedTicket.accepted_at, icon: Clock, color: 'bg-[#00D4FF] text-white' });
                                 else if (selectedTicket && ['In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(selectedTicket.status)) timeline.push({ status: 'In Progress', date: selectedTicket.updated_at || selectedTicket.created_at, icon: Clock, color: 'bg-[#00D4FF] text-white' });
 
-                                if (selectedTicket?.endorsed_at) timeline.push({ status: 'Endorsed', date: selectedTicket.endorsed_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
-                                else if (selectedTicket?.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: selectedTicket.updated_at || selectedTicket.created_at, icon: ArrowRight, color: 'bg-purple-500 text-white' });
+                                if (selectedTicket?.endorsed_at) timeline.push({ status: 'Endorsed', date: selectedTicket.endorsed_at, icon: ArrowRight, color: 'bg-[#00D4FF] text-white' });
+                                else if (selectedTicket?.status === 'Endorsed') timeline.push({ status: 'Endorsed', date: selectedTicket.updated_at || selectedTicket.created_at, icon: ArrowRight, color: 'bg-[#00D4FF] text-white' });
 
                                 if (selectedTicket?.reviewed_at) timeline.push({ status: 'Under Review', date: selectedTicket.reviewed_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
                                 else if (selectedTicket && ['Under Review', 'Endorsed', 'In Progress', 'Accomplished', 'Resolved', 'Returned'].includes(selectedTicket.status)) timeline.push({ status: 'Under Review', date: selectedTicket.updated_at || selectedTicket.created_at, icon: Wrench, color: 'bg-[#00D4FF] text-white' });
@@ -1259,7 +1383,12 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                             Comments & Updates
                         </div>
                         <div className="max-h-48 overflow-y-auto p-4 flex flex-col gap-3 emr-scrollbar bg-card">
-                            {selectedTicket?.comments && selectedTicket.comments.length > 0 ? (
+                            {commentsLoading ? (
+                                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-xs">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading messages...
+                                </div>
+                            ) : selectedTicket?.comments && selectedTicket.comments.length > 0 ? (
                                 selectedTicket.comments.map(comment => (
                                     <div key={comment.id} className={`flex flex-col ${comment.sender_bioid === (usePage<any>().props.auth?.user?.bio_id || usePage<any>().props.auth?.user?.id) ? 'items-end' : 'items-start'}`}>
                                         <div className={`text-[10px] text-muted-foreground mb-1 px-1`}>
@@ -1272,13 +1401,13 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                                     {comment.attachments.map((path, idx) => {
                                                         const isObject = typeof path === 'object' && path !== null && !((path as any) instanceof File);
                                                         const pathStr = typeof path === 'string' ? path : (isObject ? (path as any).file : ((path as any)?.name || ''));
-                                                        
+
                                                         // Ensure we have a valid path string for URLs
                                                         let rawPath = isObject ? (path as any).file : (typeof path === 'string' ? path : null);
-                                                        
+
                                                         // Always use the backend controller so it can fetch from network share
                                                         let urlPath = rawPath ? `/imiss/comment-attachment/${rawPath}` : null;
-                                                        
+
                                                         const isImage = pathStr.match(/\.(jpeg|jpg|png)$/i);
 
                                                         return (
@@ -1427,8 +1556,40 @@ export default function IMISS({ systems, tickets, requestTypes = [] }: IMISSProp
                                 className="pl-9 !bg-white"
                             />
                         </div>
+                        <div className="relative">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full sm:w-[180px] justify-start text-left font-normal bg-white cursor-pointer pr-10",
+                                            !historyDateFilter && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {historyDateFilter ? format(historyDateFilter, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 z-[100] pointer-events-auto" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={historyDateFilter}
+                                        onSelect={setHistoryDateFilter}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            {historyDateFilter && (
+                                <button
+                                    onClick={() => setHistoryDateFilter(undefined)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center hover:bg-muted text-muted-foreground"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                        </div>
                         <Select value={historyStatusFilter} onValueChange={setHistoryStatusFilter}>
-                            <SelectTrigger className="w-full sm:w-[150px] bg-white cursor-pointer">
+                            <SelectTrigger className="w-full sm:w-[150px] !bg-white cursor-pointer">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>

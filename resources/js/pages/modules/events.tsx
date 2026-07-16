@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
+import LineWaves from '@/components/ui/linewaves';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -173,30 +174,26 @@ export default function Events({ events }: Props) {
 
             <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto space-y-8">
                 {/* ==================== HERO HEADER ==================== */}
-                <Card className="relative overflow-hidden rounded-3xl border border-border/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] shadow-lg">
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl mix-blend-screen" />
-                        <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl mix-blend-screen" />
+                <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-8 shadow-lg min-h-[220px] flex flex-col justify-center">
+                    <div className="absolute inset-0 z-0">
+                        <LineWaves />
                     </div>
-                    <div className="p-6 md:p-10 relative z-10">
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-violet-400 to-blue-500 shadow-lg flex items-center justify-center shrink-0">
-                                <CalendarDays className="w-10 h-10 text-white" />
-                            </div>
-                            <div className="space-y-2">
-                                <Badge className="bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 border-0 text-xs font-semibold px-3 py-1">
-                                    Hospital Events
-                                </Badge>
-                                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-                                    Events <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-blue-400">Calendar</span>
-                                </h1>
-                                <p className="text-white/70 text-base font-medium max-w-lg">
-                                    Stay updated with hospital events, trainings, meetings, and important dates.
-                                </p>
-                            </div>
-                        </div>
+                    <div className="absolute top-0 right-0 -mt-16 -mr-16 h-64 w-64 rounded-full bg-[#00D4FF] opacity-20 blur-3xl mix-blend-screen pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 -mb-16 -ml-16 h-64 w-64 rounded-full bg-[#1E293B] opacity-40 blur-3xl mix-blend-screen pointer-events-none"></div>
+
+                    <div className="relative z-10 w-full max-w-3xl">
+                        <p className="text-sm font-bold tracking-widest text-[#00D4FF] uppercase drop-shadow-sm flex items-center gap-2">
+                            <CalendarDays className="h-4 w-4" />
+                            Hospital Events
+                        </p>
+                        <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl drop-shadow-md">
+                            Events Calendar
+                        </h1>
+                        <p className="mt-3 text-base text-white/90 leading-relaxed font-medium mb-6">
+                            Stay updated with hospital events, trainings, meetings, and important dates.
+                        </p>
                     </div>
-                </Card>
+                </section>
 
                 {/* ==================== CALENDAR CARD ==================== */}
                 <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden">

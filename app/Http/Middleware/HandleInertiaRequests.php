@@ -35,18 +35,30 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Memoize authority to prevent duplicate queries on every request
+        static $authorityCache = null;
+        
+        $getAuthority = function ($bioid) use (&$authorityCache) {
+            if (!$bioid) return null;
+            if ($authorityCache !== null) return $authorityCache;
+            
+            $authorityCache = \Illuminate\Support\Facades\DB::table('UserAuthority')
+                ->where('BiometricID', $bioid)
+                ->first(['role', 'permissions']);
+                
+            return $authorityCache;
+        };
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => function () use ($request) {
+                'user' => function () use ($request, $getAuthority) {
                     $sessionUser = $request->session()->get('soap_user_data');
                     if (!$sessionUser) return null;
 
-                    // Always pull fresh role and permissions from DB
-                    $authority = \Illuminate\Support\Facades\DB::table('UserAuthority')
-                        ->where('BiometricID', $sessionUser['bioid'] ?? '')
-                        ->first(['role', 'permissions']);
+                    // Pull role and permissions from memoized DB query
+                    $authority = $getAuthority($sessionUser['bioid'] ?? '');
 
                     if ($authority) {
                         $sessionUser['role'] = $authority->role ?? 'user';
@@ -56,34 +68,35 @@ class HandleInertiaRequests extends Middleware
                             : ($permissions ?? []);
                     }
 
+                    // Fix for slow page loads on existing sessions: Strip out the bloated base64 avatar string
+                    if (isset($sessionUser['avatar']) && str_starts_with($sessionUser['avatar'], 'data:image')) {
+                        $sessionUser['avatar'] = route('user.avatar', ['bioid' => $sessionUser['bioid']]);
+                        // Update the actual session so we don't have to deserialize it on the backend every time
+                        $request->session()->put('soap_user_data', $sessionUser);
+                    }
+
                     return $sessionUser;
                 },
             ],
-            'hospital_systems' => function () use ($request) {
+            'hospital_systems' => function () use ($request, $getAuthority) {
                 $sessionUser = $request->session()->get('soap_user_data');
                 if (!$sessionUser) return [];
 
-                $authority = \Illuminate\Support\Facades\DB::table('UserAuthority')
-                    ->where('BiometricID', $sessionUser['bioid'] ?? '')
-                    ->first(['permissions']);
+                $authority = $getAuthority($sessionUser['bioid'] ?? '');
 
                 $permissions = [];
                 if ($authority && $authority->permissions) {
                     $permissions = is_string($authority->permissions) ? json_decode($authority->permissions, true) : $authority->permissions;
                 }
                 
-                $defaultSystems = [
-                    'DiCe',
-                    'EFMS Job Order Request System',
-                    "Employee's Portal",
-                    'Health & Wellness Clinic',
-                    'Parking Management System',
-                    'PGS Online System'
-                ];
-
-                return \Illuminate\Support\Facades\DB::table('hospital_systems')->get()
-                    ->filter(function ($system) use ($defaultSystems, $permissions) {
-                        return in_array($system->name, $defaultSystems) || in_array("system:{$system->id}", $permissions ?? []);
+                $systemsArray = \Illuminate\Support\Facades\Cache::remember('hospital_systems_array_v2', now()->addHours(24), function () {
+                    return \App\Models\HospitalSystem::all()->toArray();
+                });
+                
+                $systems = collect($systemsArray);
+                
+                return $systems->filter(function ($system) use ($permissions) {
+                        return $system['is_default'] || in_array("system:{$system['id']}", $permissions ?? []);
                     })->values();
             },
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

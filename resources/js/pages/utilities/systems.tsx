@@ -32,11 +32,15 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from '@/components/ui/pagination';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 type HospitalSystem = {
     id: number;
     name: string;
     url: string;
+    is_sso: boolean;
+    is_default: boolean;
 };
 
 type Props = {
@@ -48,6 +52,8 @@ export default function UtilitiesSystems({ systems }: Props) {
     const [form, setForm] = useState({
         name: '',
         url: '',
+        is_sso: false,
+        is_default: false,
     });
 
     const [editingSystem, setEditingSystem] = useState<HospitalSystem | null>(null);
@@ -57,6 +63,8 @@ export default function UtilitiesSystems({ systems }: Props) {
         setForm({
             name: system.name,
             url: system.url,
+            is_sso: system.is_sso,
+            is_default: system.is_default,
         });
         setShowAddForm(true);
     }
@@ -67,6 +75,8 @@ export default function UtilitiesSystems({ systems }: Props) {
         setForm({
             name: '',
             url: '',
+            is_sso: false,
+            is_default: false,
         });
     }
 
@@ -189,7 +199,21 @@ export default function UtilitiesSystems({ systems }: Props) {
                         <tbody>
                             {paginatedSystems.map((item, index) => (
                                 <tr key={`${item.id}-${index}`} className="border-t border-muted-foreground/5 transition-colors hover:bg-muted/30">
-                                    <td className="px-5 py-4 font-semibold text-foreground">{item.name}</td>
+                                    <td className="px-5 py-4 font-semibold text-foreground">
+                                        <div className="flex items-center gap-2">
+                                            {item.name}
+                                            {item.is_sso && (
+                                                <Badge variant="outline" className="text-[10px] uppercase font-bold text-[#00D4FF] border-[#00D4FF]/30 bg-[#00D4FF]/10">
+                                                    SSO
+                                                </Badge>
+                                            )}
+                                            {item.is_default && (
+                                                <Badge variant="outline" className="text-[10px] uppercase font-bold text-amber-500 border-amber-500/30 bg-amber-500/10">
+                                                    DEFAULT
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-5 py-4">
                                         <a
                                             href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
@@ -298,6 +322,26 @@ export default function UtilitiesSystems({ systems }: Props) {
                                 placeholder="e.g. https://eportalplus.bataanghmc.net"
                             />
                             {errors.url && <p className="text-sm text-destructive">{errors.url}</p>}
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm mt-2">
+                            <div className="space-y-0.5">
+                                <label className="text-sm font-medium">Use Unified SSO Portal</label>
+                                <p className="text-xs text-muted-foreground">Enable this if the system requires SSO token authentication.</p>
+                            </div>
+                            <Switch
+                                checked={form.is_sso}
+                                onCheckedChange={(checked) => setForm({ ...form, is_sso: checked })}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm mt-2">
+                            <div className="space-y-0.5">
+                                <label className="text-sm font-medium">Global Default System</label>
+                                <p className="text-xs text-muted-foreground">Make this system automatically visible to all users.</p>
+                            </div>
+                            <Switch
+                                checked={form.is_default}
+                                onCheckedChange={(checked) => setForm({ ...form, is_default: checked })}
+                            />
                         </div>
                     </div>
                     <DialogFooter>

@@ -19,7 +19,7 @@ class SoapUserProvider implements UserProvider
         if ($data && ($data['bioid'] ?? null) == $identifier) {
             // Always pull fresh role and permissions from the DB
             $authority = DB::table('UserAuthority')
-                ->where('BiometricID', $identifier)
+                ->where('BiometricID', (string) $identifier)
                 ->first(['role', 'permissions']);
 
             if ($authority) {
@@ -69,7 +69,9 @@ class SoapUserProvider implements UserProvider
             ];
 
             // 1. Authenticate via SOAP
-            $soap = new SoapClient($soapAddress);
+            $soap = new SoapClient($soapAddress, [
+                'connection_timeout' => 5, // 5 seconds connection timeout
+            ]);
             $result = $soap->LogIn($param)->LogInResult;
             $userdata = (array) $result;
 
@@ -116,11 +118,8 @@ class SoapUserProvider implements UserProvider
                     'avatar'        => null, 
                 ];
 
-                // Note: If you still need the Base64 photo, you can do a quick lookup to the HRIS DB here.
-                $employeePhoto = DB::connection('hris')->table('tblEmployee')->where('bioID', $bioid)->value('photo');
-                if ($employeePhoto) {
-                    $attributes['avatar'] = 'data:image/png;base64,' . base64_encode($employeePhoto);
-                }
+                // Assign avatar URL rather than base64 encoding it during login to improve login speed
+                $attributes['avatar'] = route('user.avatar', ['bioid' => $bioid]);
 
                 // 4. Sync Database and Initialize Session
                 $authorityData = $this->upsertUserAuthority($bioid, $attributes);

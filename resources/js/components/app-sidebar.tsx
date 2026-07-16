@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, ComponentProps } from 'react';
 import { usePage } from '@inertiajs/react';
+import { cn } from '@/lib/utils';
 import {
     Activity,
     Award,
@@ -51,11 +52,11 @@ const mainNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
-    {
-        title: 'Recognition Wall',
-        href: '/recognition',
-        icon: Award,
-    },
+    // {
+    //     title: 'Recognition Wall',
+    //     href: '/recognition',
+    //     icon: Award,
+    // },
     {
         title: 'Events Calendar',
         href: '/events',
@@ -92,7 +93,7 @@ const mainNavItems: NavItem[] = [
         icon: BookOpen,
         items: [
             { title: 'Directory', href: '/directory' },
-            { title: 'Facility Map', href: '/facility-map' },
+            // { title: 'Facility Map', href: '/facility-map' },
             { title: 'User Guide', href: '/user-guide' },
         ]
     },
@@ -108,11 +109,12 @@ const mainNavItems: NavItem[] = [
             { title: 'Systems & Portals', href: '/utilities/systems' },
             { title: 'User Access', href: '/utilities/user-access' },
             { title: 'Video Orientations', href: '/utilities/video-orientations' },
+            { title: 'Audit Logs', href: '/utilities/audit-logs' },
         ]
     },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ className, ...props }: ComponentProps<typeof Sidebar>) {
     const { hospital_systems } = usePage().props as any;
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -122,17 +124,9 @@ export function AppSidebar() {
         const isImissUser = userSection === 'Integrated Management Information System Section';
 
         const dynamicSystems = (hospital_systems || []).map((system: any) => {
-            const nameLower = system.name.toLowerCase();
-            const isEmployeePortal = nameLower.includes('employee') && nameLower.includes('portal');
-            const is1App = nameLower === '1app' || nameLower.includes('1app');
-            const isIhomp = nameLower === 'ihomp cms' || nameLower.includes('ihomp');
-            const isEfms = nameLower.includes('efms');
-
-            const isSsoSystem = isEmployeePortal || is1App || isIhomp || isEfms;
-
             return {
                 title: system.name,
-                href: isSsoSystem ? `/sso-portal?system=${encodeURIComponent(system.name)}` : system.url
+                href: system.is_sso ? `/sso-portal?system=${encodeURIComponent(system.name)}` : system.url
             };
         });
 
@@ -158,7 +152,7 @@ export function AppSidebar() {
     );
 
     return (
-        <Sidebar collapsible="icon" variant="inset" className="p-0">
+        <Sidebar collapsible="icon" variant="inset" className={cn('p-0', className)} {...props}>
             <SidebarContent className="gap-4 py-3">
                 <div className="px-3 pt-2 flex items-center gap-2">
                     <div className="relative flex-1 group-data-[collapsible=icon]:hidden">
@@ -187,7 +181,6 @@ export function AppSidebar() {
                     BGHMC 2026
                 </div>
             </SidebarFooter>
-            <SidebarRail />
         </Sidebar>
     );
 }

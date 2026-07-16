@@ -39,13 +39,14 @@ export function AppGlobalHeader() {
 
     useEffect(() => {
         fetchNotifications();
-        const interval = setInterval(fetchNotifications, 15000); // 15 seconds
+        // Disabled polling to prevent session blocking:
+        // const interval = setInterval(fetchNotifications, 60000); 
         
         const handleNewNotification = () => fetchNotifications();
         window.addEventListener('refresh-notifications', handleNewNotification);
 
         return () => {
-            clearInterval(interval);
+            // clearInterval(interval);
             window.removeEventListener('refresh-notifications', handleNewNotification);
         };
     }, []);

@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { useTabSessionEnd } from '@/hooks/use-tab-session-end';
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
@@ -13,6 +14,26 @@ export default function AppLayout({
 }) {
     useTabSessionEnd();
     const { url } = usePage();
+
+    useEffect(() => {
+        const modulePrefixes = ['/cert', '/hr-portal', '/imiss', '/qr-pass', '/directory', '/user-guide'];
+        let matchedHref = '';
+        if (url.startsWith('/sso-portal')) {
+            matchedHref = url;
+        } else {
+            matchedHref = modulePrefixes.find(prefix => url.startsWith(prefix)) || '';
+        }
+
+        if (matchedHref) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('recent_modules') || '[]');
+                const newSaved = [matchedHref, ...saved.filter((h: string) => h !== matchedHref)].slice(0, 3);
+                localStorage.setItem('recent_modules', JSON.stringify(newSaved));
+            } catch (e) {
+                console.error('Failed to update recent modules', e);
+            }
+        }
+    }, [url]);
 
     // Auto-generate breadcrumbs based on URL if none are provided
     const activeBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : (() => {

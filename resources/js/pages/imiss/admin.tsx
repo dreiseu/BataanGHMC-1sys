@@ -76,12 +76,12 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
         }
     }, [tickets]);
 
-    // Poll for ticket and comment updates every 15 seconds
+    // Poll for ticket and comment updates every 60 seconds
     useEffect(() => {
         const interval = setInterval(() => {
             // @ts-ignore
             router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true });
-        }, 15000);
+        }, 60000);
         return () => clearInterval(interval);
     }, []);
 

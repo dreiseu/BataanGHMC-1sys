@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->validateCsrfTokens(except: [
             'notifications/*',
+            'session-end',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

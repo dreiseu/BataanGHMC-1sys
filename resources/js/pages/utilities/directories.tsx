@@ -94,12 +94,14 @@ export default function UtilitiesDirectories({ entries }: Props) {
 
     const filteredDirectory = useMemo(() => {
         const keyword = search.toLowerCase().trim();
-        if (!keyword) return entries;
         return entries.filter((item) => {
-            const matchesSearch =
-                item.department.toLowerCase().includes(keyword) ||
-                item.local_no.includes(keyword) ||
-                item.section.toLowerCase().includes(keyword);
+            let matchesSearch = true;
+            if (keyword) {
+                matchesSearch =
+                    (item.department || '').toLowerCase().includes(keyword) ||
+                    (item.local_no || '').includes(keyword) ||
+                    (item.section || '').toLowerCase().includes(keyword);
+            }
             const matchesSection =
                 sectionFilter === 'all' || item.section === sectionFilter;
             return matchesSearch && matchesSection;
