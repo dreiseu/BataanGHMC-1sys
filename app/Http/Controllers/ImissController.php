@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\HospitalSystem;
 use App\Models\ImissTicket;
+use App\Services\NasStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Response;
 
@@ -102,7 +103,7 @@ class ImissController extends Controller
                 foreach ($files as $file) {
                     if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
                         try {
-                            $path = $file->store('imiss_attachments', 'public');
+                            $path = NasStorage::store($file, 'imiss_attachments');
                             if ($path) {
                                 $attachmentPaths[] = $path;
                             }
@@ -113,7 +114,7 @@ class ImissController extends Controller
                 }
             } elseif ($files instanceof \Illuminate\Http\UploadedFile && $files->isValid()) {
                 try {
-                    $path = $files->store('imiss_attachments', 'public');
+                    $path = NasStorage::store($files, 'imiss_attachments');
                     if ($path) {
                         $attachmentPaths[] = $path;
                     }
@@ -318,7 +319,7 @@ class ImissController extends Controller
                 foreach ($files as $file) {
                     if ($file instanceof \Illuminate\Http\UploadedFile && $file->isValid()) {
                         try {
-                            $path = $file->store('imiss_comment_attachments', 'public');
+                            $path = NasStorage::store($file, 'imiss_comment_attachments');
                             if ($path) {
                                 $attachmentPaths[] = $path;
                             }
@@ -329,7 +330,7 @@ class ImissController extends Controller
                 }
             } elseif ($files instanceof \Illuminate\Http\UploadedFile && $files->isValid()) {
                 try {
-                    $path = $files->store('imiss_comment_attachments', 'public');
+                    $path = NasStorage::store($files, 'imiss_comment_attachments');
                     if ($path) {
                         $attachmentPaths[] = $path;
                     }
@@ -375,13 +376,17 @@ class ImissController extends Controller
         // Prevent path traversal attacks
         $file = basename($file);
 
-        $path = storage_path('app/public/imiss_attachments/' . $file);
+        // Served via the IIS "1bghmc_attachments" virtual directory (which holds its own
+        // working NAS credentials) instead of reading the UNC path directly from PHP,
+        // since the app pool identity cannot reliably read the NAS share itself.
+        $nasResponse = Http::timeout(10)->get(rtrim(env('APP_URL'), '/') . '/1bghmc_attachments/imiss_attachments/' . $file);
 
-        if (!file_exists($path)) {
+        if (!$nasResponse->successful()) {
             abort(404);
         }
 
-        return response()->file($path);
+        return response($nasResponse->body(), 200)
+            ->header('Content-Type', $nasResponse->header('Content-Type') ?: 'application/octet-stream');
     }
 
     public function openCommentAttachment($file)
@@ -391,58 +396,58 @@ class ImissController extends Controller
 
         $file = basename($file);
 
-        $path = storage_path(
-            'app/public/imiss_comment_attachments/' . $file
-        );
+        $nasResponse = Http::timeout(10)->get(rtrim(env('APP_URL'), '/') . '/1bghmc_attachments/imiss_comment_attachments/' . $file);
 
-        if (!file_exists($path)) {
-            // Fallback 1: check main imiss_attachments folder
-            $fallbackPath = storage_path('app/public/imiss_attachments/' . $file);
-            
-            if (file_exists($fallbackPath)) {
-                return response()->file($fallbackPath);
-            } 
-            
-            // Fallback 2: Fetch from external CMS server via HTTP (to bypass UNC permission issues)
-            $cmsUrl = 'http://192.168.42.73/imiss_comment_attachments/' . $file;
-            try {
-                $cmsUser = env('CMS_USERNAME');
-                $cmsPass = env('CMS_PASSWORD');
-                $cmsDomain = env('CMS_DOMAIN', 'CMS-PLUS-SVR');
-
-                // Disconnect from database before making slow external HTTP request
-                \Illuminate\Support\Facades\DB::disconnect();
-
-                $ch = curl_init($cmsUrl);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3); // 3 seconds connection timeout
-                curl_setopt($ch, CURLOPT_TIMEOUT, 5);        // 5 seconds total timeout
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-                
-                if ($cmsUser && $cmsPass) {
-                    $authStr = $cmsDomain ? $cmsDomain . '\\' . $cmsUser . ':' . $cmsPass : $cmsUser . ':' . $cmsPass;
-                    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_NTLM | CURLAUTH_BASIC);
-                    curl_setopt($ch, CURLOPT_USERPWD, $authStr);
-                }
-                
-                $responseBody = curl_exec($ch);
-                $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-                
-                curl_close($ch);
-                
-                if ($statusCode == 200) {
-                    return response($responseBody, 200)
-                        ->header('Content-Type', $contentType ?? 'image/jpeg');
-                } else {
-                    return response("Failed to fetch from CMS. HTTP Status: " . $statusCode . " | Attempted URL: " . $cmsUrl, 404);
-                }
-            } catch (\Exception $e) {
-                return response("Exception fetching from CMS: " . $e->getMessage(), 500);
-            }
+        if ($nasResponse->successful()) {
+            return response($nasResponse->body(), 200)
+                ->header('Content-Type', $nasResponse->header('Content-Type') ?: 'application/octet-stream');
         }
 
-        return response()->file($path);
+        // Fallback 1: check main imiss_attachments folder
+        $fallbackResponse = Http::timeout(10)->get(rtrim(env('APP_URL'), '/') . '/1bghmc_attachments/imiss_attachments/' . $file);
+
+        if ($fallbackResponse->successful()) {
+            return response($fallbackResponse->body(), 200)
+                ->header('Content-Type', $fallbackResponse->header('Content-Type') ?: 'application/octet-stream');
+        }
+
+        // Fallback 2: Fetch from external CMS server via HTTP (to bypass UNC permission issues)
+        $cmsUrl = 'http://192.168.42.73/imiss_comment_attachments/' . $file;
+        try {
+            $cmsUser = env('CMS_USERNAME');
+            $cmsPass = env('CMS_PASSWORD');
+            $cmsDomain = env('CMS_DOMAIN', 'CMS-PLUS-SVR');
+
+            // Disconnect from database before making slow external HTTP request
+            \Illuminate\Support\Facades\DB::disconnect();
+
+            $ch = curl_init($cmsUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3); // 3 seconds connection timeout
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);        // 5 seconds total timeout
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+
+            if ($cmsUser && $cmsPass) {
+                $authStr = $cmsDomain ? $cmsDomain . '\\' . $cmsUser . ':' . $cmsPass : $cmsUser . ':' . $cmsPass;
+                curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_NTLM | CURLAUTH_BASIC);
+                curl_setopt($ch, CURLOPT_USERPWD, $authStr);
+            }
+
+            $responseBody = curl_exec($ch);
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+
+            curl_close($ch);
+
+            if ($statusCode == 200) {
+                return response($responseBody, 200)
+                    ->header('Content-Type', $contentType ?? 'image/jpeg');
+            } else {
+                return response("Failed to fetch from CMS. HTTP Status: " . $statusCode . " | Attempted URL: " . $cmsUrl, 404);
+            }
+        } catch (\Exception $e) {
+            return response("Exception fetching from CMS: " . $e->getMessage(), 500);
+        }
     }
 }

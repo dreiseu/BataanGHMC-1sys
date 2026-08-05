@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\HrDocument;
 use App\Services\AuditLogService;
+use App\Services\NasStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class HrDocumentController extends Controller
@@ -52,7 +52,7 @@ class HrDocumentController extends Controller
 
         if ($request->hasFile('file_file')) {
             $file = $request->file('file_file');
-            $path = $file->store('hr_documents', 'public');
+            $path = NasStorage::store($file, 'hr_documents');
             $data['file_path'] = $path;
             $data['file_type'] = strtoupper($file->getClientOriginalExtension());
         }
@@ -98,11 +98,11 @@ class HrDocumentController extends Controller
         }
 
         if ($request->hasFile('file_file')) {
-            if ($hrDocument->file_path && Storage::disk('public')->exists($hrDocument->file_path)) {
-                Storage::disk('public')->delete($hrDocument->file_path);
+            if ($hrDocument->file_path && NasStorage::exists($hrDocument->file_path)) {
+                NasStorage::delete($hrDocument->file_path);
             }
             $file = $request->file('file_file');
-            $path = $file->store('hr_documents', 'public');
+            $path = NasStorage::store($file, 'hr_documents');
             $data['file_path'] = $path;
             $data['file_type'] = strtoupper($file->getClientOriginalExtension());
         }
@@ -129,8 +129,8 @@ class HrDocumentController extends Controller
         $label = $hrDocument->title;
         $id = (string) $hrDocument->id;
 
-        if ($hrDocument->file_path && Storage::disk('public')->exists($hrDocument->file_path)) {
-            Storage::disk('public')->delete($hrDocument->file_path);
+        if ($hrDocument->file_path && NasStorage::exists($hrDocument->file_path)) {
+            NasStorage::delete($hrDocument->file_path);
         }
         
         $hrDocument->delete();

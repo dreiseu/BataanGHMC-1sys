@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\VideoOrientation;
 use App\Services\AuditLogService;
+use App\Services\NasStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class VideoOrientationController extends Controller
@@ -43,7 +43,7 @@ class VideoOrientationController extends Controller
         ];
 
         if ($request->hasFile('video_file')) {
-            $path = $request->file('video_file')->store('videos', 'public');
+            $path = NasStorage::store($request->file('video_file'), 'videos');
             $data['video_path'] = $path;
         }
 
@@ -84,11 +84,11 @@ class VideoOrientationController extends Controller
 
         if ($request->hasFile('video_file')) {
             // Delete old video if it exists
-            if ($videoOrientation->video_path && Storage::disk('public')->exists($videoOrientation->video_path)) {
-                Storage::disk('public')->delete($videoOrientation->video_path);
+            if ($videoOrientation->video_path && NasStorage::exists($videoOrientation->video_path)) {
+                NasStorage::delete($videoOrientation->video_path);
             }
             
-            $path = $request->file('video_file')->store('videos', 'public');
+            $path = NasStorage::store($request->file('video_file'), 'videos');
             $data['video_path'] = $path;
         }
 
@@ -114,8 +114,8 @@ class VideoOrientationController extends Controller
         $label = $videoOrientation->title;
         $id = (string) $videoOrientation->id;
 
-        if ($videoOrientation->video_path && Storage::disk('public')->exists($videoOrientation->video_path)) {
-            Storage::disk('public')->delete($videoOrientation->video_path);
+        if ($videoOrientation->video_path && NasStorage::exists($videoOrientation->video_path)) {
+            NasStorage::delete($videoOrientation->video_path);
         }
         
         $videoOrientation->delete();
