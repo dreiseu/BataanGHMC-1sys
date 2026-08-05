@@ -1,71 +1,96 @@
 import * as React from 'react';
-import { DayPicker } from 'react-day-picker';
+import { DayPicker, useDayPicker } from 'react-day-picker';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
+function CalendarHeader(props: { calendarMonth: { date: Date } }) {
+    const { previousMonth, nextMonth, goToMonth } = useDayPicker();
+
+    return (
+        <div className="flex items-center justify-center gap-3 pt-1 pb-2">
+            <button
+                type="button"
+                disabled={!previousMonth}
+                onClick={() => previousMonth && goToMonth(previousMonth)}
+                className="h-7 w-7 rounded-full hover:bg-muted/80 flex items-center justify-center transition-colors cursor-pointer text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed border-0"
+                aria-label="Previous Month"
+            >
+                <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-bold text-foreground tracking-tight px-1">
+                {format(props.calendarMonth.date, 'MMMM yyyy')}
+            </span>
+            <button
+                type="button"
+                disabled={!nextMonth}
+                onClick={() => nextMonth && goToMonth(nextMonth)}
+                className="h-7 w-7 rounded-full hover:bg-muted/80 flex items-center justify-center transition-colors cursor-pointer text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed border-0"
+                aria-label="Next Month"
+            >
+                <ChevronRight className="h-4 w-4" />
+            </button>
+        </div>
+    );
+}
+
 function Calendar({
     className,
     classNames,
-    showOutsideDays = true,
+    showOutsideDays = false,
     ...props
 }: CalendarProps) {
     return (
         <DayPicker
             showOutsideDays={showOutsideDays}
             className={cn('p-0', className)}
+            formatters={{
+                formatWeekdayName: (date) => {
+                    const days = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+                    return days[date.getDay()];
+                },
+                ...props.formatters,
+            }}
             classNames={{
-                root: cn('p-3', classNames?.root),
+                root: cn('p-4 bg-card rounded-[24px] border border-border/50 shadow-xl shadow-black/5 min-w-[280px]', classNames?.root),
                 months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
-                month: 'space-y-4',
-                month_caption: 'flex justify-center pt-1 relative items-center h-8',
-                caption_label: 'text-sm font-medium',
-                nav: 'space-x-1 flex items-center',
-                button_previous: cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1 rounded-lg'
-                ),
-                button_next: cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1 rounded-lg'
-                ),
+                month: 'space-y-3',
+                month_caption: 'flex justify-center items-center',
                 month_grid: 'w-full border-collapse space-y-1',
-                weekdays: 'flex',
-                weekday: 'text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]',
+                weekdays: 'flex justify-between mb-1',
+                weekday: 'text-muted-foreground/60 w-9 font-bold text-[11px] uppercase tracking-wider text-center py-1',
                 weeks: '',
-                week: 'flex mt-2',
+                week: 'flex mt-1 justify-between',
                 day: cn(
-                    'relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md',
+                    'relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-transparent',
                     props.mode === 'range'
-                        ? '[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md'
-                        : '[&:has([aria-selected])]:rounded-md'
+                        ? '[&:has(>.day-range-end)]:rounded-r-xl [&:has(>.day-range-start)]:rounded-l-xl first:[&:has([aria-selected])]:rounded-l-xl last:[&:has([aria-selected])]:rounded-r-xl'
+                        : '[&:has([aria-selected])]:rounded-xl'
                 ),
                 day_button: cn(
                     buttonVariants({ variant: 'ghost' }),
-                    'h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-lg'
+                    'h-9 w-9 p-0 font-medium text-sm rounded-xl transition-all hover:bg-muted/80 hover:text-foreground focus:bg-muted focus:text-foreground cursor-pointer flex items-center justify-center aria-selected:!bg-[#00D4FF] aria-selected:!text-[#0F172A] aria-selected:!font-extrabold aria-selected:!rounded-xl aria-selected:!shadow-md aria-selected:!shadow-[#00D4FF]/30'
                 ),
                 range_end: 'day-range-end',
                 range_start: 'day-range-start',
                 selected:
-                    'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
-                today: 'bg-accent text-accent-foreground',
+                    '!bg-[#00D4FF] !text-[#0F172A] !font-extrabold !rounded-xl !shadow-md !shadow-[#00D4FF]/30 hover:!bg-[#00D4FF] hover:!text-[#0F172A] focus:!bg-[#00D4FF] focus:!text-[#0F172A]',
+                today: 'font-bold text-[#00D4FF] bg-[#00D4FF]/10 rounded-xl',
                 outside:
-                    'day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30',
-                disabled: 'text-muted-foreground opacity-50',
+                    'day-outside text-muted-foreground/40 opacity-40 aria-selected:bg-[#00D4FF]/50 aria-selected:text-[#0F172A] aria-selected:opacity-60',
+                disabled: 'text-muted-foreground/30 opacity-30',
                 range_middle:
-                    'aria-selected:bg-accent aria-selected:text-accent-foreground',
+                    'aria-selected:bg-[#00D4FF]/20 aria-selected:text-foreground',
                 hidden: 'invisible',
                 ...classNames,
             }}
             components={{
-                Chevron: (props) => {
-                    if (props.orientation === 'left') {
-                        return <ChevronLeft className="h-4 w-4" />;
-                    }
-                    return <ChevronRight className="h-4 w-4" />;
-                },
+                MonthCaption: CalendarHeader,
+                Nav: () => null,
+                ...props.components,
             }}
             {...props}
         />

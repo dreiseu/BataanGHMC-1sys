@@ -1,8 +1,59 @@
 import { Head } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ShieldAlert, PhoneCall, MonitorX, Globe, Lock, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, PhoneCall, MonitorX, Globe, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import IMISSLogo from '../../../images/IMISS_Official Logo.png';
 import BGHMCLogo from '../../../images/BGHMC_Logo_Compressed.png';
+
+const TOTAL_SLIDES = 51;
+const slideSrc = (n: number) => `/cert-slides/slide-${String(n).padStart(2, '0')}.jpg`;
+
+function CertSlideCarousel() {
+    const [slide, setSlide] = useState(1);
+
+    const goPrev = () => setSlide((s) => (s === 1 ? TOTAL_SLIDES : s - 1));
+    const goNext = () => setSlide((s) => (s === TOTAL_SLIDES ? 1 : s + 1));
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') goPrev();
+            if (e.key === 'ArrowRight') goNext();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
+
+    return (
+        <div className="w-full max-w-[600px] mx-auto aspect-[4/3] sm:aspect-video lg:aspect-[4/3] shadow-2xl rounded-xl overflow-hidden border border-border bg-black relative group">
+            <img
+                src={slideSrc(slide)}
+                alt={`Cybersecurity Awareness slide ${slide} of ${TOTAL_SLIDES}`}
+                className="absolute inset-0 w-full h-full object-contain"
+            />
+
+            <button
+                type="button"
+                onClick={goPrev}
+                aria-label="Previous slide"
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+            >
+                <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+                type="button"
+                onClick={goNext}
+                aria-label="Next slide"
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+            >
+                <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <div className="absolute bottom-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/50 text-white text-xs font-medium">
+                {slide} / {TOTAL_SLIDES}
+            </div>
+        </div>
+    );
+}
 
 export default function Cert() {
     return (
@@ -29,30 +80,8 @@ export default function Cert() {
                         </p>
                     </div>
 
-                    {/* Google Slides Embed */}
-                    <div className="w-full max-w-[600px] mx-auto aspect-[4/3] sm:aspect-video lg:aspect-[4/3] shadow-2xl rounded-xl overflow-hidden border border-border bg-black/5 relative group">
-
-                        {/* 
-                          ⚠️ REPLACE THIS SRC ⚠️
-                          Replace the `src` attribute below with your actual Google Slides "Publish to the web" embed URL. 
-                          To get it: Open your Google Slide -> File -> Share -> Publish to web -> Embed -> Copy the src link.
-                        */}
-                        <iframe
-                            src="about:blank"
-                            frameBorder="0"
-                            width="100%"
-                            height="100%"
-                            allowFullScreen
-                            className="absolute inset-0 w-full h-full border-0 z-10"
-                        ></iframe>
-
-                        {/* Placeholder Content (will be hidden behind the iframe once a valid src is provided) */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground p-6 text-center z-0">
-                            <ShieldCheck className="w-16 h-16 mb-4 opacity-50" />
-                            <p className="font-bold text-lg">Unavailable</p>
-                            <p className="text-sm opacity-80 mt-2">Please contact IMISS for more information.</p>
-                        </div>
-                    </div>
+                    {/* Cybersecurity Awareness Slide Carousel */}
+                    <CertSlideCarousel />
                 </div>
 
                 {/* Middle Section: Best Practices */}

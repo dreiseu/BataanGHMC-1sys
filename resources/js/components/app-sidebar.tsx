@@ -82,7 +82,7 @@ const mainNavItems: NavItem[] = [
         items: [
             { title: 'BataanGHMC-CERT', href: '/cert' },
             { title: 'HR Portal', href: '/hr-portal' },
-            { title: 'IMISS', href: '/imiss' },
+            { title: 'IMISS Job Order Request', href: '/imiss' },
             { title: 'PETRO', href: 'https://sites.google.com/view/bghmc-petro/home' },
             { title: 'QR PASS', href: '/qr-pass' },
         ]
@@ -123,12 +123,16 @@ export function AppSidebar({ className, ...props }: ComponentProps<typeof Sideba
         const userSection = auth?.user?.SectionName ?? '';
         const isImissUser = userSection === 'Integrated Management Information System Section';
 
-        const dynamicSystems = (hospital_systems || []).map((system: any) => {
-            return {
-                title: system.name,
-                href: system.is_sso ? `/sso-portal?system=${encodeURIComponent(system.name)}` : system.url
-            };
-        });
+        const efmsSystem = (hospital_systems || []).find((sys: any) => sys.name.toLowerCase().includes('efms'));
+
+        const dynamicSystems = (hospital_systems || [])
+            .filter((sys: any) => !sys.name.toLowerCase().includes('efms'))
+            .map((system: any) => {
+                return {
+                    title: system.name,
+                    href: system.is_sso ? `/sso-portal?system=${encodeURIComponent(system.name)}` : system.url
+                };
+            });
 
         return mainNavItems
             .filter(item => {
@@ -141,6 +145,19 @@ export function AppSidebar({ className, ...props }: ComponentProps<typeof Sideba
                     return {
                         ...item,
                         items: dynamicSystems
+                    };
+                }
+                if (item.title === 'Services') {
+                    const servicesItems = [...(item.items || [])];
+                    if (efmsSystem && !servicesItems.some(s => s.title.toLowerCase().includes('efms'))) {
+                        servicesItems.push({
+                            title: efmsSystem.name,
+                            href: efmsSystem.is_sso ? `/sso-portal?system=${encodeURIComponent(efmsSystem.name)}` : efmsSystem.url
+                        });
+                    }
+                    return {
+                        ...item,
+                        items: servicesItems
                     };
                 }
                 return item;
@@ -178,7 +195,7 @@ export function AppSidebar({ className, ...props }: ComponentProps<typeof Sideba
                     Philippine Copyright © 2018 Dr. Glory V. Baltazar
                 </div>
                 <div className="hidden p-2 text-[10px] text-center text-sidebar-foreground/60 group-data-[collapsible=icon]:block font-semibold">
-                    BGHMC 2026
+                    BGHMC 2018
                 </div>
             </SidebarFooter>
         </Sidebar>

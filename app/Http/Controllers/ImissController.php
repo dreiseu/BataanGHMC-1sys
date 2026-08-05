@@ -60,7 +60,7 @@ class ImissController extends Controller
         $validated = $request->validate([
             'request_type' => 'required|string|max:50',
             'description' => 'required|string',
-            'local_number' => 'nullable|string|max:50',
+            'local_number' => 'required|string|max:50',
             'pc_number' => 'nullable|string|max:50',
             'location' => 'required|string|max:100',
             'priority' => 'required|string|max:20',
@@ -68,7 +68,21 @@ class ImissController extends Controller
             'attachments.*' => 'file|max:10240', // 10MB max per file
         ]);
 
-        $bioId = Auth::user()->bio_id ?? Auth::id();
+        // Auth::user() (AuthUser) exposes the requester's biometric ID as
+        // "bioid" (see AuthUser::getAuthIdentifierName) — "bio_id" is not a
+        // real attribute on it, so that check must come first or this
+        // silently falls through to whatever raw identifier was used to log in.
+        $bioId = Auth::user()->bioid ?? Auth::user()->bio_id ?? Auth::id();
+
+        $hasActiveTicket = ImissTicket::where('bio_id', $bioId)
+            ->whereNotIn('status', ['Resolved', 'Cancelled'])
+            ->exists();
+
+        if ($hasActiveTicket) {
+            return back()->withErrors([
+                'active_ticket' => 'You already have an active ticket. Please wait for it to be resolved before submitting a new one.',
+            ]);
+        }
 
         // Generate Ticket Number (e.g., TKT-260715-001)
         $datePrefix = date('ymd');
@@ -129,7 +143,20 @@ class ImissController extends Controller
     {
         $validated = $request->validate([
             'rating' => 'nullable|integer|min:1|max:5',
-            'feedback_text' => 'nullable|string',
+            'feedback_text' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) use ($request) {
+                    $rating = $request->input('rating');
+                    if ($rating !== null && $rating <= 3) {
+                        if (trim((string) $value) === '') {
+                            $fail('Feedback is required when the rating is 3 or below.');
+                        } elseif (strlen(trim($value)) < 10) {
+                            $fail('Feedback must be at least 10 characters when the rating is 3 or below.');
+                        }
+                    }
+                },
+            ],
         ]);
 
         // Ensure user is authorized to resolve this ticket

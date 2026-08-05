@@ -16,25 +16,25 @@ export default function SsoPortal({ bioid, password, portalUrl = 'https://eporta
         if (!bioid || !password) return;
 
         setSsoStatus('loading');
-        
+
         // 1. Open a microscopic popup window to hide the 100:Success text
         const windowName = 'sso_popup_' + Date.now();
 
         const form = document.createElement('form');
         form.method = 'POST';
         form.target = windowName;
-        
+
         let targetUrl = portalUrl;
-        
+
         // Ensure we strip index.php from the target URL before appending login endpoints
         if (targetUrl.endsWith('/index.php')) {
             targetUrl = targetUrl.substring(0, targetUrl.length - 10);
         } else if (targetUrl.endsWith('index.php')) {
             targetUrl = targetUrl.substring(0, targetUrl.length - 9);
         }
-        
+
         const nameLower = systemName.toLowerCase();
-        
+
         // Formulate the precise POST endpoint based on the target system architecture
         if (nameLower.includes('1app')) {
             targetUrl = targetUrl.endsWith('/') ? `${targetUrl}includes/login.php` : `${targetUrl}/includes/login.php`;
@@ -72,7 +72,7 @@ export default function SsoPortal({ bioid, password, portalUrl = 'https://eporta
 
         // 2. Decide if we need a hidden popup or direct submit
         const needsPopup = (nameLower.includes('employee') && nameLower.includes('portal')) || nameLower.includes('efms');
-        
+
         if (needsPopup) {
             form.target = windowName;
             const popup = window.open('', windowName, 'width=1,height=1,left=20000,top=20000,menubar=no,toolbar=no,location=no,status=no,titlebar=no,scrollbars=no');
@@ -111,7 +111,7 @@ export default function SsoPortal({ bioid, password, portalUrl = 'https://eporta
                 } else if (finalRedirectUrl.endsWith('/index.php')) {
                     finalRedirectUrl = finalRedirectUrl.substring(0, finalRedirectUrl.length - 10);
                 }
-                
+
                 if (nameLower.includes('efms')) {
                     finalRedirectUrl = finalRedirectUrl.endsWith('/') ? `${finalRedirectUrl}views/job_order.php` : `${finalRedirectUrl}/views/job_order.php`;
                 }
@@ -125,7 +125,7 @@ export default function SsoPortal({ bioid, password, portalUrl = 'https://eporta
             // Direct submission for well-built apps that handle their own redirects (1APP, IHOMP CMS)
             form.target = '_self';
             setSsoStatus('success');
-            
+
             // Give the UI 500ms to show the "Authentication Complete" overlay before the browser navigates away
             setTimeout(() => {
                 form.submit();
@@ -144,7 +144,7 @@ export default function SsoPortal({ bioid, password, portalUrl = 'https://eporta
                         <h2 className="text-xl font-bold text-destructive">Authentication Error</h2>
                         <p className="mt-2 text-sm text-foreground">
                             We could not retrieve your login credentials to access {systemName}.
-                            Please log out and log back into 1SYS, or access the portal manually.
+                            Please log out and log back into 1BGHMC, or access the portal manually.
                         </p>
                         <a
                             href={portalUrl}

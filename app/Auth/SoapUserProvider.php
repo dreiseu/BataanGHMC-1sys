@@ -100,12 +100,26 @@ class SoapUserProvider implements UserProvider
                 //     }
                 // }
 
-                // 3. Map User Data from SOAP Response
+                // 3. Resolve the canonical Biometric ID from the SOAP response.
+                // Employees may log in using either their Biometric ID or an assigned
+                // username, so the raw login credential ($bioid) is not reliable as the
+                // true identifier — the Account object's "BiometricID" field is
+                // (confirmed from a live response; it's undeclared in the WSDL).
+                $resolvedBioId = $account->BiometricID ?? null;
+
+                if ($resolvedBioId === null || $resolvedBioId === '') {
+                    Log::warning('HRIS Auth: SOAP Account response missing BiometricID for login input=' . $bioid . '. Raw Account fields: ' . json_encode($account));
+                    $resolvedBioId = $bioid;
+                } else {
+                    $resolvedBioId = (string) $resolvedBioId;
+                }
+
+                // 4. Map User Data from SOAP Response
                 $employeeName = $account->FullName ?? 'Unknown User';
                 
                 $attributes = [
-                    'id'            => $bioid,
-                    'bioid'         => $bioid,
+                    'id'            => $resolvedBioId,
+                    'bioid'         => $resolvedBioId,
                     'password'      => $password, // Be cautious storing raw passwords in session
                     'name'          => $employeeName,
                     'FullName'      => $employeeName,
@@ -119,17 +133,17 @@ class SoapUserProvider implements UserProvider
                 ];
 
                 // Assign avatar URL rather than base64 encoding it during login to improve login speed
-                $attributes['avatar'] = route('user.avatar', ['bioid' => $bioid]);
+                $attributes['avatar'] = route('user.avatar', ['bioid' => $resolvedBioId]);
 
-                // 4. Sync Database and Initialize Session
-                $authorityData = $this->upsertUserAuthority($bioid, $attributes);
+                // 5. Sync Database and Initialize Session
+                $authorityData = $this->upsertUserAuthority($resolvedBioId, $attributes);
                 $attributes['UserPrivilege'] = $authorityData['UserPrivilege'];
                 $attributes['role']          = $authorityData['role'];
                 $attributes['permissions']   = $authorityData['permissions'];
 
                 Session::put('soap_user_data', $attributes);
 
-                Log::info('HRIS Auth: Login successful via SOAP for bioid=' . $bioid);
+                Log::info('HRIS Auth: Login successful via SOAP for bioid=' . $resolvedBioId . ' (login input=' . $bioid . ')');
 
                 return new AuthUser($attributes);
             }

@@ -89,22 +89,8 @@ export default function Directory({ entries }: Props) {
     }, [bucasDirectory]);
 
     const currentDate = useMemo(() => {
-        if (!entries || entries.length === 0) {
-            return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        }
-
-        const latestEntry = entries.reduce((latest, current) => {
-            if (!current.updated_at) return latest;
-            if (!latest.updated_at) return current;
-            return new Date(current.updated_at) > new Date(latest.updated_at) ? current : latest;
-        }, entries[0]);
-
-        if (!latestEntry || !latestEntry.updated_at) {
-            return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        }
-
-        return new Date(latestEntry.updated_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    }, [entries]);
+        return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    }, []);
 
     const currentYear = new Date().getFullYear();
 

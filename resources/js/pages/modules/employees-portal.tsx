@@ -24,14 +24,14 @@ export default function EmployeesPortal({ bioid, password, portalUrl = 'https://
         const form = document.createElement('form');
         form.method = 'POST';
         form.target = windowName;
-        
+
         let targetUrl = url;
-        
+
         // Universally ensure the target URL hits the login endpoint
         if (!targetUrl.endsWith('/login') && !targetUrl.includes('login.php')) {
             targetUrl = targetUrl.endsWith('/') ? `${targetUrl}login` : `${targetUrl}/login`;
         }
-        
+
         form.action = targetUrl;
 
         const fields = [
@@ -108,7 +108,7 @@ export default function EmployeesPortal({ bioid, password, portalUrl = 'https://
                         <h2 className="text-xl font-bold text-destructive">Authentication Error</h2>
                         <p className="mt-2 text-sm text-foreground">
                             We could not retrieve your login credentials to access the Employee's Portal.
-                            Please log out and log back into 1SYS, or access the portal manually.
+                            Please log out and log back into 1BGHMC, or access the portal manually.
                         </p>
                         <a
                             href={portalUrl}

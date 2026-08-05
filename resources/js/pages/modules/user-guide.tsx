@@ -28,7 +28,7 @@ export default function UserGuide() {
                             Help & Documentation
                         </p>
                         <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-5xl drop-shadow-md">
-                            1SYS User Guide
+                            1BGHMC User Guide
                         </h1>
                         <p className="mt-4 text-lg text-white/90 leading-relaxed font-medium">
                             Welcome to the EMR+ ecosystem. This guide will walk you through navigating the platform, accessing hospital systems, and getting support when you need it.
@@ -72,7 +72,7 @@ export default function UserGuide() {
                                     </AccordionTrigger>
                                     <AccordionContent className="text-muted-foreground leading-relaxed text-sm pt-2 pb-4 space-y-3">
                                         <p>
-                                            1SYS features Single Sign-On (SSO) capabilities. Once you are logged into 1SYS, you do not need to log in again to access most internal portals.
+                                            1BGHMC features Single Sign-On (SSO) capabilities. Once you are logged into 1BGHMC, you do not need to log in again to access most internal portals.
                                         </p>
                                         <p>
                                             Navigate to the <strong>Systems</strong> menu in the sidebar and click on the portal you wish to open (e.g., 1APP, iHOMP CMS). The system will securely authenticate you in the background and redirect you to the application's dashboard.

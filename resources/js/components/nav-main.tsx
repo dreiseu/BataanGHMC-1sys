@@ -101,7 +101,7 @@ export function NavMain({
                                                                 asChild
                                                                 isActive={isHrefActive(child.href)}
                                                             >
-                                                                {String(child.href).startsWith('http://') || String(child.href).startsWith('https://') ? (
+                                                                {String(child.href).startsWith('http://') || String(child.href).startsWith('https://') || String(child.href).startsWith('/sso-portal') ? (
                                                                     <a href={child.href} target="_blank" rel="noopener noreferrer">
                                                                         <span>{child.title}</span>
                                                                     </a>
@@ -126,7 +126,7 @@ export function NavMain({
                                         className="h-9 rounded-lg px-3 font-medium text-sidebar-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm"
                                         tooltip={{ children: item.title }}
                                     >
-                                        {String(item.href).startsWith('http://') || String(item.href).startsWith('https://') ? (
+                                        {String(item.href).startsWith('http://') || String(item.href).startsWith('https://') || String(item.href).startsWith('/sso-portal') ? (
                                             <a href={item.href} target="_blank" rel="noopener noreferrer">
                                                 {item.icon && <item.icon />}
                                                 <span>{item.title}</span>
