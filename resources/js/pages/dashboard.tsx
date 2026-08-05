@@ -26,7 +26,8 @@ import {
     Clock,
     ShieldAlert,
     Info,
-    Search
+    Search,
+    Wrench
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -55,7 +56,7 @@ const SERVICES = [
         icon: Users,
     },
     {
-        title: 'IMISS',
+        title: 'IMISS Job Order Request',
         description: 'Integrated hospital operations module.',
         href: '/imiss',
         icon: HeartPulse,
@@ -87,7 +88,7 @@ const SERVICES = [
 ];
 
 const CYBER_TIPS = [
-    { title: 'Password Security', text: 'Never share your 1SYS password with anyone, not even IMISS staff.' },
+    { title: 'Password Security', text: 'Never share your 1BGHMC password with anyone, not even IMISS staff.' },
     { title: 'Phishing Alert', text: 'Do not click on suspicious email links asking for your login credentials.' },
     { title: 'Lock Your Screen', text: 'Always lock your workstation (Win+L) when stepping away.' }
 ];
@@ -99,42 +100,56 @@ export default function Dashboard() {
     const ALL_MODULES = useMemo(() => {
         const iconList = [Cpu, FolderGit2, Building2, LayoutGrid, Contact];
 
-        const dynamicSystems = (hospitalSystems || []).map((sys: any, index: number) => {
-            const nameLower = sys.name.toLowerCase();
-            let SysIcon = Building2;
-            let SysDesc = `Access the ${sys.name} external hospital system.`;
+        const efmsSystem = (hospitalSystems || []).find((sys: any) => sys.name.toLowerCase().includes('efms'));
 
-            if (nameLower.includes("employee")) {
-                SysIcon = IdCard;
-                SysDesc = "Employee self-service access and personal records.";
-            } else if (nameLower.includes("medical") || nameLower.includes("doc") || nameLower.includes("dice")) {
-                SysIcon = Stethoscope;
-                SysDesc = "Electronic medical records and clinical data management.";
-            } else if (nameLower.includes("health") || nameLower.includes("clinic")) {
-                SysIcon = Activity;
-                SysDesc = "Employee health, consultation, and wellness tracking.";
-            } else if (nameLower.includes("form") || nameLower.includes("order")) {
-                SysIcon = FormInput;
-                SysDesc = "Submit and track electronic forms and job orders.";
-            } else if (nameLower.includes("1app")) {
-                SysIcon = Box;
-                SysDesc = "Centralized institutional application access portal.";
-            } else if (nameLower.includes("cert")) {
-                SysIcon = BookCopy;
-                SysDesc = "Medical certification and verification system.";
-            } else {
-                SysIcon = iconList[index % iconList.length];
-            }
+        const dynamicSystems = (hospitalSystems || [])
+            .filter((sys: any) => !sys.name.toLowerCase().includes('efms'))
+            .map((sys: any, index: number) => {
+                const nameLower = sys.name.toLowerCase();
+                let SysIcon = Building2;
+                let SysDesc = `Access the ${sys.name} external hospital system.`;
 
-            return {
-                title: sys.name,
-                description: SysDesc,
-                href: sys.is_sso ? `/sso-portal?system=${encodeURIComponent(sys.name)}` : sys.url,
-                icon: SysIcon,
-            };
-        });
+                if (nameLower.includes("employee")) {
+                    SysIcon = IdCard;
+                    SysDesc = "Employee self-service access and personal records.";
+                } else if (nameLower.includes("medical") || nameLower.includes("doc") || nameLower.includes("dice")) {
+                    SysIcon = Stethoscope;
+                    SysDesc = "Electronic medical records and clinical data management.";
+                } else if (nameLower.includes("health") || nameLower.includes("clinic")) {
+                    SysIcon = Activity;
+                    SysDesc = "Employee health, consultation, and wellness tracking.";
+                } else if (nameLower.includes("form") || nameLower.includes("order")) {
+                    SysIcon = FormInput;
+                    SysDesc = "Submit and track electronic forms and job orders.";
+                } else if (nameLower.includes("1app")) {
+                    SysIcon = Box;
+                    SysDesc = "Centralized institutional application access portal.";
+                } else if (nameLower.includes("cert")) {
+                    SysIcon = BookCopy;
+                    SysDesc = "Medical certification and verification system.";
+                } else {
+                    SysIcon = iconList[index % iconList.length];
+                }
 
-        return [...SERVICES, ...dynamicSystems];
+                return {
+                    title: sys.name,
+                    description: SysDesc,
+                    href: sys.is_sso ? `/sso-portal?system=${encodeURIComponent(sys.name)}` : sys.url,
+                    icon: SysIcon,
+                };
+            });
+
+        const updatedServices = [...SERVICES];
+        if (efmsSystem && !updatedServices.some(s => s.title.toLowerCase().includes('efms'))) {
+            updatedServices.push({
+                title: efmsSystem.name,
+                description: 'Engineering & Facilities Management job order system.',
+                href: efmsSystem.is_sso ? `/sso-portal?system=${encodeURIComponent(efmsSystem.name)}` : efmsSystem.url,
+                icon: Wrench,
+            });
+        }
+
+        return [...updatedServices, ...dynamicSystems];
     }, [hospitalSystems]);
 
     const savedPins = (Array.isArray(initialPinnedModules) ? initialPinnedModules : [])

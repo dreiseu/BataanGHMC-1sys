@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { QrCode, Download, Printer, Share2, Loader2, Maximize2 } from 'lucide-react';
 import LineWaves from '@/components/ui/linewaves';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 export default function QrPass() {
@@ -69,30 +70,6 @@ export default function QrPass() {
                 </html>
             `);
             printWindow.document.close();
-        }
-    };
-
-    const handleShare = async (pass: any) => {
-        try {
-            // Attempt to convert base64 to file and share natively (Works well on Mobile/MacOS)
-            const fetchRes = await fetch(pass.qrImageBase64);
-            const blob = await fetchRes.blob();
-            const file = new File([blob], `${pass.id}.png`, { type: 'image/png' });
-
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: pass.title,
-                    text: `Official BataanGHMC QR Pass: ${pass.id}`,
-                    files: [file]
-                });
-            } else {
-                // Fallback for Desktop: Copy ID to clipboard
-                await navigator.clipboard.writeText(pass.id);
-                toast.success('Pass ID copied to clipboard!');
-            }
-        } catch (error) {
-            console.error('Error sharing', error);
-            // Ignore abort errors from the user canceling the share sheet
         }
     };
 
@@ -234,14 +211,21 @@ export default function QrPass() {
                                         >
                                             <Printer className="w-3 h-3 mr-1.5 text-muted-foreground" /> Print
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="cursor-pointer flex-1 h-8 text-xs font-semibold shadow-sm"
-                                            onClick={() => handleShare(pass)}
-                                        >
-                                            <Share2 className="w-3 h-3 mr-1.5 text-muted-foreground" /> Share
-                                        </Button>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="flex-1">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled
+                                                        className="w-full h-8 text-xs font-semibold shadow-sm cursor-not-allowed opacity-60"
+                                                    >
+                                                        <Share2 className="w-3 h-3 mr-1.5 text-muted-foreground" /> Share
+                                                    </Button>
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Coming soon</TooltipContent>
+                                        </Tooltip>
                                     </div>
                                 </div>
                             </Card>

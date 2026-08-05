@@ -29,7 +29,7 @@ class DirectoryController extends Controller
 
     public function printPdf()
     {
-        $entries = collect(Cache::remember('directory_entries_all', 3600, function () {
+        $rawEntries = Cache::remember('directory_entries_all', 3600, function () {
             return DirectoryEntry::get()
                 ->sortBy([
                     ['section', 'asc'],
@@ -38,7 +38,9 @@ class DirectoryController extends Controller
                 ])
                 ->values()
                 ->toArray();
-        }));
+        });
+
+        $entries = collect($rawEntries)->map(fn ($item) => (object) $item);
 
         $bataanDirectory = $entries->where('section', 'BataanGHMC')->values();
         $bucasDirectory = $entries->where('section', 'BUCAS')->values();
@@ -63,8 +65,7 @@ class DirectoryController extends Controller
             ];
         }
 
-        $latestEntry = $entries->sortByDesc('updated_at')->first();
-        $currentDate = $latestEntry && $latestEntry->updated_at ? $latestEntry->updated_at->format('F j, Y') : date('F j, Y');
+        $currentDate = date('F j, Y');
         $currentYear = date('Y');
         $trunkLines = [
             'bghmc' => '(047) 237-9771, 237-9772, 237-1274',

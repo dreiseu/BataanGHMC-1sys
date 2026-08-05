@@ -25,7 +25,7 @@ interface UserNotification {
 export function AppGlobalHeader() {
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
-    
+
     const fetchNotifications = () => {
         fetch('/notifications')
             .then(res => res.json())
@@ -41,7 +41,7 @@ export function AppGlobalHeader() {
         fetchNotifications();
         // Disabled polling to prevent session blocking:
         // const interval = setInterval(fetchNotifications, 60000); 
-        
+
         const handleNewNotification = () => fetchNotifications();
         window.addEventListener('refresh-notifications', handleNewNotification);
 
@@ -126,7 +126,7 @@ export function AppGlobalHeader() {
                             <img src={bghmcLogoUrl} alt="BGHMC Logo" className="main-system-logo" />
 
                             <div className="main-system-title">
-                                <div className="main-system-title-line">1SYS</div>
+                                <div className="main-system-title-line">1BGHMC</div>
                                 <div className="info-system">
                                     <span className="main-system-title-line text-[0.45em] leading-tight text-white/85">Unified Access Portal</span>
                                 </div>
@@ -144,7 +144,7 @@ export function AppGlobalHeader() {
                     </div>
                 </div>
 
-                <div className="main-system-right flex items-center justify-end px-5 gap-4">
+                <div className="main-system-right flex items-center justify-end px-2 sm:px-5 gap-2 sm:gap-4">
                     <DropdownMenu>
                         <DropdownMenuTrigger className="relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10 transition-colors focus:outline-none cursor-pointer">
                             <Bell className="h-5 w-5 text-white/90" />
@@ -154,12 +154,12 @@ export function AppGlobalHeader() {
                                 </span>
                             )}
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[350px]">
+                        <DropdownMenuContent align="end" className="w-[90vw] max-w-[350px]">
                             <div className="flex items-center justify-between px-3 py-2 border-b">
                                 <DropdownMenuLabel className="p-0 text-sm font-semibold">Notifications</DropdownMenuLabel>
                                 {notifications.length > 0 && (
                                     <div className="flex items-center gap-2">
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); bulkMarkAsRead(); }}
                                             disabled={selectedIds.length === 0}
                                             className={`p-1.5 rounded transition-colors ${selectedIds.length > 0 ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-muted-foreground/50 cursor-not-allowed'}`}
@@ -167,7 +167,7 @@ export function AppGlobalHeader() {
                                         >
                                             <MailOpen className="h-4 w-4" />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); bulkDelete(); }}
                                             disabled={selectedIds.length === 0}
                                             className={`p-1.5 rounded transition-colors ${selectedIds.length > 0 ? 'text-destructive hover:bg-destructive/10' : 'text-muted-foreground/50 cursor-not-allowed'}`}
@@ -178,10 +178,10 @@ export function AppGlobalHeader() {
                                     </div>
                                 )}
                             </div>
-                            
+
                             {notifications.length > 0 && (
                                 <div className="flex items-center px-3 py-2 border-b bg-muted/10 gap-3">
-                                    <Checkbox 
+                                    <Checkbox
                                         checked={selectedIds.length === notifications.length && notifications.length > 0}
                                         onCheckedChange={(checked) => {
                                             toggleSelectAll();
@@ -197,18 +197,18 @@ export function AppGlobalHeader() {
                             <div className="max-h-[350px] overflow-y-auto emr-scrollbar">
                                 {notifications.length > 0 ? (
                                     notifications.map(notification => (
-                                        <div 
-                                            key={notification.id} 
+                                        <div
+                                            key={notification.id}
                                             className={`group flex items-start gap-3 p-3 border-b last:border-0 transition-all ${!notification.is_read ? 'bg-[#00D4FF]/10 hover:bg-[#00D4FF]/15' : 'hover:bg-muted/10 opacity-75 hover:opacity-100'}`}
                                         >
                                             <div className="mt-1">
-                                                <Checkbox 
+                                                <Checkbox
                                                     checked={selectedIds.includes(notification.id)}
                                                     onCheckedChange={() => toggleSelect(notification.id)}
                                                     className="rounded-sm"
                                                 />
                                             </div>
-                                            <div 
+                                            <div
                                                 className="flex-1 min-w-0 flex items-start gap-2 cursor-pointer hover:opacity-80 transition-opacity"
                                                 onClick={() => {
                                                     if (!notification.is_read) {
@@ -234,7 +234,7 @@ export function AppGlobalHeader() {
                                             </div>
                                             <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {notification.is_read ? (
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAsUnread(notification.id); }}
                                                         className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                                         title="Mark as unread"
@@ -242,7 +242,7 @@ export function AppGlobalHeader() {
                                                         <MailOpen className="h-3.5 w-3.5" />
                                                     </button>
                                                 ) : (
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAsRead(notification.id); }}
                                                         className="p-1.5 rounded hover:bg-muted text-emerald-500 transition-colors"
                                                         title="Mark as read"
@@ -250,7 +250,7 @@ export function AppGlobalHeader() {
                                                         <Mail className="h-3.5 w-3.5" />
                                                     </button>
                                                 )}
-                                                <button 
+                                                <button
                                                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNotification(notification.id); }}
                                                     className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                                     title="Delete"

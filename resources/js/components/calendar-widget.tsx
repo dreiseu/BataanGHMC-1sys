@@ -15,7 +15,7 @@ interface Props {
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_NAMES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 const TYPE_DOT_COLORS: Record<string, string> = {
     training: 'bg-blue-500',
@@ -29,6 +29,7 @@ export function CalendarWidget({ events = [] }: Props) {
     const today = new Date();
     const [currentMonth, setCurrentMonth] = useState(today.getMonth());
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
+    const [selectedDate, setSelectedDate] = useState<number>(today.getDate());
 
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
@@ -76,25 +77,29 @@ export function CalendarWidget({ events = [] }: Props) {
 
     const calendarDays = [];
     for (let i = 0; i < firstDayOfWeek; i++) {
-        calendarDays.push(<div key={`empty-${i}`} className="h-7" />);
+        calendarDays.push(<div key={`empty-${i}`} className="h-9 w-9 mx-auto" />);
     }
     for (let day = 1; day <= daysInMonth; day++) {
         const dayEvents = eventsByDate[day] || [];
+        const isSelected = day === selectedDate;
         const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
         const hasEvents = dayEvents.length > 0;
 
         calendarDays.push(
             <div
                 key={day}
-                className={`h-7 rounded-md flex flex-col items-center justify-center text-[11px] transition-all ${isToday
-                    ? 'bg-[#00D4FF] text-[#0F172A] font-bold shadow-sm'
-                    : hasEvents
-                        ? 'text-foreground font-semibold'
-                        : 'text-muted-foreground/60'
+                onClick={() => setSelectedDate(day)}
+                className={`h-9 w-9 mx-auto rounded-xl flex flex-col items-center justify-center text-sm transition-all cursor-pointer ${isSelected
+                    ? 'bg-[#00D4FF] text-[#0F172A] font-extrabold shadow-md shadow-[#00D4FF]/30 scale-105'
+                    : isToday
+                        ? 'font-bold text-[#00D4FF] bg-[#00D4FF]/10 hover:bg-muted/80'
+                        : hasEvents
+                            ? 'text-foreground font-semibold hover:bg-muted/80'
+                            : 'text-muted-foreground/80 hover:bg-muted/80'
                     }`}
             >
                 <span className="leading-none">{day}</span>
-                {hasEvents && (
+                {hasEvents && !isSelected && (
                     <div className="flex gap-[2px] mt-[2px]">
                         {dayEvents.slice(0, 2).map((e, i) => (
                             <span key={i} className={`w-1 h-1 rounded-full ${TYPE_DOT_COLORS[e.type] || 'bg-muted'}`} />
@@ -106,48 +111,48 @@ export function CalendarWidget({ events = [] }: Props) {
     }
 
     return (
-        <div className="rounded-3xl border bg-card p-5 shadow-sm flex flex-col">
+        <div className="rounded-[24px] border border-border/50 bg-card p-5 shadow-xl shadow-black/5 flex flex-col min-w-[280px]">
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold tracking-tight flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-[#00D4FF]" />
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-extrabold tracking-tight flex items-center gap-2 text-foreground">
+                    <CalendarDays className="h-5 w-5 text-[#00D4FF]" />
                     Calendar
                 </h2>
-                <Link href="/events" className="text-[10px] font-semibold text-muted-foreground hover:text-[#00D4FF] transition-colors">
+                <Link href="/events" className="text-xs font-semibold text-muted-foreground hover:text-[#00D4FF] transition-colors">
                     View All
                 </Link>
             </div>
 
             {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-2">
-                <button onClick={prevMonth} className="h-6 w-6 rounded-md hover:bg-muted flex items-center justify-center transition-colors">
-                    <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            <div className="flex items-center justify-center gap-3 mb-3 px-1">
+                <button onClick={prevMonth} className="h-7 w-7 rounded-full hover:bg-muted flex items-center justify-center transition-colors cursor-pointer text-muted-foreground hover:text-foreground">
+                    <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-xs font-bold text-foreground">
+                <span className="text-sm font-bold text-foreground tracking-tight px-1">
                     {MONTH_NAMES[currentMonth]} {currentYear}
                 </span>
-                <button onClick={nextMonth} className="h-6 w-6 rounded-md hover:bg-muted flex items-center justify-center transition-colors">
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                <button onClick={nextMonth} className="h-7 w-7 rounded-full hover:bg-muted flex items-center justify-center transition-colors cursor-pointer text-muted-foreground hover:text-foreground">
+                    <ChevronRight className="w-4 h-4" />
                 </button>
             </div>
 
             {/* Day Names */}
             <div className="grid grid-cols-7 gap-0 mb-1">
                 {DAY_NAMES.map((name) => (
-                    <div key={name} className="text-center text-[9px] font-bold text-muted-foreground/50 uppercase tracking-wider py-0.5">
-                        {name.slice(0, 2)}
+                    <div key={name} className="text-center text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider py-1">
+                        {name}
                     </div>
                 ))}
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0">
+            <div className="grid grid-cols-7 gap-y-1">
                 {calendarDays}
             </div>
 
             {/* Upcoming Events */}
             {upcomingEvents.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                <div className="mt-4 pt-3 border-t border-border/40 space-y-2">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Upcoming</p>
                     {upcomingEvents.map((event) => {
                         const eventDate = new Date(event.event_date);

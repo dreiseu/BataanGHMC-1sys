@@ -96,7 +96,7 @@ const imissServices = [
     },
     {
         title: 'Software & Systems',
-        description: '1SYS access, HRIS, EMR, and standard applications.',
+        description: '1BGHMC access, HRIS, EMR, and standard applications.',
         icon: Monitor,
     },
     {
@@ -124,6 +124,7 @@ interface TicketType {
     pc_number?: string;
     accepted_at?: string;
     cancelled_at?: string;
+    cancelled_reason?: string;
     reviewed_at?: string;
     endorsed_at?: string;
     returned_at?: string;
@@ -172,7 +173,7 @@ const playNotificationSound = () => {
             gainNode.connect(audioCtx.destination);
 
             oscillator.type = 'triangle'; // Brighter/louder than sine
-            
+
             // 3-note ascending chime
             oscillator.frequency.setValueAtTime(587.33, startTime);       // D5
             oscillator.frequency.setValueAtTime(880, startTime + 0.15);   // A5
@@ -209,12 +210,24 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
     const [currentSSOUrl, setCurrentSSOUrl] = useState('');
     const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
     const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
+    const [isActiveTicketOpen, setIsActiveTicketOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     const [commentsLoading, setCommentsLoading] = useState(false);
 
     const prevTicketsRef = useRef<TicketType[]>(tickets);
     const justSentMessageRef = useRef<boolean>(false);
+
+    const CLOSED_TICKET_STATUSES = ['Resolved', 'Cancelled'];
+    const activeTicket = tickets.find(t => !CLOSED_TICKET_STATUSES.includes(t.status));
+
+    const handleNewTicketClick = () => {
+        if (activeTicket) {
+            setIsActiveTicketOpen(true);
+            return;
+        }
+        setIsSubmitDialogOpen(true);
+    };
 
     const fetchComments = (ticketId: number) => {
         setCommentsLoading(true);
@@ -393,7 +406,7 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                 duration: 99999999,
                                 closeButton: true,
                             });
-                            
+
                             router.post('/notifications', {
                                 title: 'New Message',
                                 message: `You have a new comment on ticket ${newTicket.ticket_number}`,
@@ -532,6 +545,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
 
     const [rating, setRating] = useState(0);
     const [feedback, setFeedback] = useState('');
+    const [feedbackError, setFeedbackError] = useState('');
+    const isFeedbackRequired = rating > 0 && rating <= 3;
     const commentForm = useForm({
         message: '',
         attachments: [] as File[],
@@ -557,6 +572,11 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         attachments: [] as File[],
     });
 
+    const isFormInvalid = !data.request_type.trim() ||
+        !data.description.trim() ||
+        !data.local_number.trim() ||
+        !data.location.trim();
+
     const handleSubmitTicket = () => {
         post('/imiss/tickets', {
             preserveScroll: true,
@@ -566,7 +586,13 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                 setActiveTicketIndex(0);
                 reset();
                 toast.success('Job order request submitted successfully!');
-            }
+            },
+            onError: (errs) => {
+                if (errs.active_ticket) {
+                    setIsSubmitDialogOpen(false);
+                    setIsActiveTicketOpen(true);
+                }
+            },
         });
     };
 
@@ -664,7 +690,7 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             </p>
 
                             <button
-                                onClick={() => setIsSubmitDialogOpen(true)}
+                                onClick={handleNewTicketClick}
                                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#00D4FF] px-5 py-3 text-sm font-bold text-[#0F172A] transition-all hover:bg-white hover:shadow-[0_0_20px_rgba(0,212,255,0.4)] hover:-translate-y-0.5"
                             >
                                 <PlusCircle className="h-5 w-5" />
@@ -927,6 +953,9 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                                     <Button
                                                         onClick={() => {
                                                             setTicketToResolve(activeTicket);
+                                                            setRating(0);
+                                                            setFeedback('');
+                                                            setFeedbackError('');
                                                             setIsConfirmResolutionOpen(true);
                                                         }}
                                                         className="w-full relative z-10 font-semibold bg-[#1E293B] hover:bg-[#1E293B]/90 text-white cursor-pointer border-none"
@@ -1055,8 +1084,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
             </div>
 
             <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
-                <DialogContent className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-0 [&>button]:text-white [&>button]:cursor-pointer data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out">
-                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden">
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] rounded-3xl p-0 overflow-hidden border-0 flex flex-col [&>button]:text-white [&>button]:cursor-pointer data-[state=open]:slide-in-from-bottom-10 data-[state=open]:duration-500 ease-out">
+                    <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] p-6 text-white relative overflow-hidden shrink-0">
                         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-[#00D4FF] opacity-20 blur-2xl mix-blend-screen pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-32 w-32 rounded-full bg-[#1E293B] opacity-40 blur-2xl mix-blend-screen pointer-events-none"></div>
                         <DialogHeader className="relative z-10">
@@ -1070,7 +1099,7 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                         </DialogHeader>
                     </div>
 
-                    <div className="p-6 grid gap-5">
+                    <div className="p-6 grid gap-5 overflow-y-auto flex-1 min-h-0">
                         <div className="grid gap-2">
                             <label className="text-sm font-semibold text-foreground">
                                 Request Type <span className="text-destructive">*</span>
@@ -1091,12 +1120,12 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <label className="text-sm font-semibold text-foreground">
-                                    Local Number
+                                    Local Number <span className="text-destructive">*</span>
                                 </label>
                                 <div className="relative w-full">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
                                     <Input
-                                        placeholder="e.g., 123"
+                                        placeholder="e.g., 1115"
                                         className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.local_number}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('local_number', e.target.value)}
@@ -1224,7 +1253,7 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                         </div>
                     </div>
 
-                    <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-end">
+                    <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-end shrink-0">
                         <Button
                             variant="ghost"
                             onClick={() => { setIsSubmitDialogOpen(false); reset(); }}
@@ -1234,8 +1263,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                         </Button>
                         <Button
                             onClick={() => setIsConfirmSubmitOpen(true)}
-                            disabled={processing}
-                            className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group"
+                            disabled={processing || isFormInvalid}
+                            className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <span>Submit Request</span>
                             {processing ? (
@@ -1322,6 +1351,15 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                 <h4 className="text-sm font-bold text-[#1E293B] mb-2 uppercase tracking-wider">Admin Remarks</h4>
                                 <div className="rounded-xl bg-[#1E293B]/5 p-4 text-sm text-foreground/80 border border-[#1E293B]/20 whitespace-pre-wrap">
                                     {selectedTicket.remarks}
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedTicket?.status === 'Cancelled' && selectedTicket?.cancelled_reason && (
+                            <div className="mb-6">
+                                <h4 className="text-sm font-bold text-red-600 mb-2 uppercase tracking-wider">Cancellation Reason</h4>
+                                <div className="rounded-xl bg-red-50 p-4 text-sm text-foreground/80 border border-red-200 whitespace-pre-wrap">
+                                    {selectedTicket.cancelled_reason}
                                 </div>
                             </div>
                         )}
@@ -1671,13 +1709,19 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             </div>
                         </div>
                         <div>
-                            <label className="text-sm font-semibold mb-2 block">Feedback (Optional)</label>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Feedback {isFeedbackRequired ? <span className="text-destructive">(Required)</span> : '(Optional)'}
+                            </label>
                             <Textarea
-                                placeholder="Tell us about your experience..."
+                                placeholder={isFeedbackRequired ? "How can we improve our service?" : "Tell us about your experience..."}
                                 value={feedback}
-                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                    setFeedback(e.target.value);
+                                    if (feedbackError) setFeedbackError('');
+                                }}
                                 className="resize-none"
                             />
+                            {feedbackError && <span className="text-xs text-destructive mt-1 block">{feedbackError}</span>}
                         </div>
                     </div>
 
@@ -1686,7 +1730,12 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             Wait, not yet
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={() => {
+                            onClick={(e: React.MouseEvent) => {
+                                if (isFeedbackRequired && feedback.trim().length < 10) {
+                                    e.preventDefault();
+                                    setFeedbackError('Please tell us more about your experience (at least 10 characters).');
+                                    return;
+                                }
                                 if (ticketToResolve) {
                                     router.put('/imiss/tickets/' + ticketToResolve.id + '/resolve', {
                                         rating,
@@ -1697,6 +1746,7 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                             setIsConfirmResolutionOpen(false);
                                             setRating(0);
                                             setFeedback('');
+                                            setFeedbackError('');
                                         }
                                     });
                                 } else {
@@ -1778,6 +1828,32 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             className="rounded-xl bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-neutral-900 font-bold cursor-pointer"
                         >
                             Yes, Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isActiveTicketOpen} onOpenChange={setIsActiveTicketOpen}>
+                <AlertDialogContent className="sm:max-w-[425px] rounded-2xl border-0 bg-card p-6 shadow-2xl">
+                    <AlertDialogHeader className="text-left">
+                        <AlertDialogTitle className="text-xl flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+                                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            </div>
+                            You Have an Active Ticket
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm mt-3 text-foreground/80">
+                            {activeTicket
+                                ? <>Your ticket <strong>{activeTicket.ticket_number}</strong> is currently <strong>{activeTicket.status}</strong>. If your issue has already been resolved, please confirm the resolution under <strong>Active Tickets</strong> and provide your feedback.</>
+                                : "You have an open ticket. If the issue is resolved, please confirm the resolution and leave feedback. Otherwise, please wait for it to be resolved before opening a new request."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-6 sm:justify-end">
+                        <AlertDialogAction
+                            onClick={() => setIsActiveTicketOpen(false)}
+                            className="rounded-xl bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-neutral-900 font-bold cursor-pointer"
+                        >
+                            Got it
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

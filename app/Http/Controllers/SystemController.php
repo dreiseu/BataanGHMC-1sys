@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\HospitalSystem;
 use App\Services\AuditLogService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class SystemController extends Controller
@@ -37,6 +38,8 @@ class SystemController extends Controller
             newValues: $system->toArray(),
         );
 
+        Cache::forget('hospital_systems_array_v2');
+
         return back();
     }
 
@@ -62,6 +65,8 @@ class SystemController extends Controller
             newValues: $system->toArray(),
         );
 
+        Cache::forget('hospital_systems_array_v2');
+
         return back();
     }
 
@@ -80,6 +85,8 @@ class SystemController extends Controller
             auditableLabel: $label,
             oldValues: $oldValues,
         );
+
+        Cache::forget('hospital_systems_array_v2');
 
         return back();
     }

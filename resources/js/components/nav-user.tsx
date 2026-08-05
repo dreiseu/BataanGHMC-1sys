@@ -46,7 +46,7 @@ function NavUserHeader({ variant }: { variant: 'header' | 'global' }) {
                     variant="ghost"
                     className={
                         variant === 'global'
-                            ? 'h-14 min-w-[320px] justify-end gap-3 rounded-xl bg-transparent px-3 text-white hover:bg-white/6 data-[state=open]:bg-white/6 cursor-pointer'
+                            ? 'h-14 min-w-0 sm:min-w-[320px] justify-end gap-2 sm:gap-3 rounded-xl bg-transparent px-1 sm:px-3 text-white hover:bg-white/6 data-[state=open]:bg-white/6 cursor-pointer'
                             : 'h-11 min-w-[240px] justify-start gap-2 rounded-xl border border-border/70 px-3 text-foreground hover:bg-muted data-[state=open]:bg-muted cursor-pointer'
                     }
                     data-test={
@@ -66,7 +66,7 @@ function NavUserHeader({ variant }: { variant: 'header' | 'global' }) {
                                     {getInitials(auth.user.name)}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="min-w-0 flex-1 text-left">
+                            <div className="hidden min-w-0 flex-1 text-left sm:block">
                                 <div className="truncate text-sm font-semibold tracking-[0.02em] text-white uppercase">
                                     {auth.user.name}
                                 </div>
@@ -75,7 +75,7 @@ function NavUserHeader({ variant }: { variant: 'header' | 'global' }) {
                                 </div>
                             </div>
 
-                            <ChevronDown className="size-4 text-white/70" />
+                            <ChevronDown className="hidden size-4 shrink-0 text-white/70 sm:block" />
                         </>
                     ) : (
                         <>
