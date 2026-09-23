@@ -1,5 +1,5 @@
 import { Head, router, usePage, useForm } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -60,11 +60,44 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
         attachments: [] as File[],
     });
 
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const hasScrolledOnOpenRef = useRef(false);
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [selectedTicket?.comments]);
+    // See imiss/index.tsx for why this uses scrollTop directly instead of scrollIntoView on a
+    // sentinel: it avoids alignment ambiguity and the dialog's slide-in animation racing with
+    // the very first scroll. First scroll after opening jumps instantly; later updates (a new
+    // message arriving while the panel is still open) scroll smoothly.
+    useLayoutEffect(() => {
+        if (!isDetailsOpen) {
+            hasScrolledOnOpenRef.current = false;
+            return;
+        }
+
+        const isFirstScrollForThisOpen = !hasScrolledOnOpenRef.current;
+        hasScrolledOnOpenRef.current = true;
+
+        const scrollNow = (smooth: boolean) => {
+            const el = messagesContainerRef.current;
+            if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+        };
+
+        scrollNow(!isFirstScrollForThisOpen);
+
+        if (!isFirstScrollForThisOpen) return;
+
+        // The dialog portals its content, so the container may not be mounted/laid out yet
+        // on this very first pass — retry across a couple of animation frames rather than
+        // bailing out if the ref isn't populated yet.
+        let raf2 = 0;
+        const raf1 = requestAnimationFrame(() => {
+            scrollNow(false);
+            raf2 = requestAnimationFrame(() => scrollNow(false));
+        });
+        return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
+        };
+    }, [selectedTicket?.comments, isDetailsOpen]);
 
     const page = usePage();
     const currentUserId = (page.props.auth as any)?.user?.bio_id || (page.props.auth as any)?.user?.id;
@@ -76,14 +109,52 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
         }
     }, [tickets]);
 
-    // Poll for ticket and comment updates every 60 seconds
+    // Real-time: any ticket status change or new comment refreshes the admin list.
     useEffect(() => {
-        const interval = setInterval(() => {
-            // @ts-ignore
-            router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true });
-        }, 60000);
-        return () => clearInterval(interval);
+        if (!window.Echo) return;
+
+        const channel = window.Echo.private('imiss.admin');
+        const reloadTickets = () => router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true } as any);
+
+        channel.listen('.ticket.status-updated', reloadTickets).listen('.comment.posted', reloadTickets);
+
+        return () => {
+            channel.stopListening('.ticket.status-updated').stopListening('.comment.posted');
+            window.Echo.leave('imiss.admin');
+        };
     }, []);
+
+    // Real-time: append incoming chat messages directly while a ticket's panel is open.
+    useEffect(() => {
+        if (!isDetailsOpen || !selectedTicket || !window.Echo) return;
+
+        const ticketId = selectedTicket.id;
+        const channel = window.Echo.private(`imiss.ticket.${ticketId}`);
+
+        channel.listen('.comment.posted', (e: any) => {
+            setSelectedTicket(prev => {
+                if (!prev || prev.id !== ticketId) return prev;
+                const existingComments = prev.comments ?? [];
+                if (existingComments.some(c => c.id === e.id)) return prev; // already have it (e.g. from the tickets prop refresh)
+                return {
+                    ...prev,
+                    comments: [...existingComments, {
+                        id: e.id,
+                        message: e.message,
+                        sender_bioid: e.sender_bioid,
+                        sender_name: e.sender_name,
+                        created_at: e.created_at,
+                        attachments: e.attachments,
+                    }],
+                };
+            });
+        });
+
+        return () => {
+            channel.stopListening('.comment.posted');
+            window.Echo.leave(`imiss.ticket.${ticketId}`);
+        };
+    }, [isDetailsOpen, selectedTicket?.id]);
 
     const submitComment = () => {
         if (commentForm.processing) return;
@@ -92,10 +163,13 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
         const inputElement = document.getElementById('admin-chat-input');
         if (inputElement) inputElement.focus();
 
+        const socketId = window.Echo?.socketId();
+
         commentForm.post(`/imiss/tickets/${selectedTicket.id}/comments`, {
             preserveScroll: true,
             preserveState: true,
             forceFormData: true,
+            headers: socketId ? { 'X-Socket-Id': socketId } : {},
             onSuccess: () => {
                 commentForm.reset();
             }
@@ -305,7 +379,7 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                             </h4>
 
                             <div className="bg-muted/30 rounded-2xl border flex flex-col h-[350px]">
-                                <div className="flex-1 p-4 overflow-y-auto emr-scrollbar flex flex-col gap-3">
+                                <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto emr-scrollbar flex flex-col gap-3">
                                     {selectedTicket?.comments && selectedTicket.comments.length > 0 ? (
                                         selectedTicket.comments.map((comment) => {
                                             const isSelf = comment.sender_bioid?.toString() === currentUserId?.toString();
@@ -344,7 +418,6 @@ export default function ImissAdmin({ tickets }: ImissAdminProps) {
                                             No communication history yet.
                                         </div>
                                     )}
-                                    <div ref={messagesEndRef} />
                                 </div>
                                 <div className="p-3 bg-muted/10 border-t flex flex-col gap-2">
                                     {commentForm.data.attachments.length > 0 && (

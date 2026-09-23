@@ -102,6 +102,7 @@ const mainNavItems: NavItem[] = [
         href: '/utilities',
         icon: Settings,
         items: [
+            { title: 'Departments', href: '/utilities/departments' },
             { title: 'Directories', href: '/utilities/directories' },
             { title: 'Events', href: '/utilities/events' },
             { title: 'HR Documents', href: '/utilities/hr-documents' },

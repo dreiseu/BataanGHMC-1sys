@@ -11,7 +11,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 interface UserNotification {
     id: number;
@@ -25,6 +25,8 @@ interface UserNotification {
 export function AppGlobalHeader() {
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const { auth } = usePage<any>().props;
+    const bioId = auth?.user?.bioid;
 
     const fetchNotifications = () => {
         fetch('/notifications')
@@ -39,17 +41,24 @@ export function AppGlobalHeader() {
 
     useEffect(() => {
         fetchNotifications();
-        // Disabled polling to prevent session blocking:
-        // const interval = setInterval(fetchNotifications, 60000); 
 
         const handleNewNotification = () => fetchNotifications();
         window.addEventListener('refresh-notifications', handleNewNotification);
 
+        let channel: ReturnType<Window['Echo']['private']> | null = null;
+        if (bioId && window.Echo) {
+            channel = window.Echo.private(`imiss.user.${bioId}`);
+            channel.listen('.notification.created', fetchNotifications);
+        }
+
         return () => {
-            // clearInterval(interval);
             window.removeEventListener('refresh-notifications', handleNewNotification);
+            if (channel) {
+                channel.stopListening('.notification.created');
+                window.Echo.leave(`imiss.user.${bioId}`);
+            }
         };
-    }, []);
+    }, [bioId]);
 
     // The onMouseEnter directly calls router.post to mark as read, removing the need for a separate markAsRead function
     const markAsRead = (id: number) => {

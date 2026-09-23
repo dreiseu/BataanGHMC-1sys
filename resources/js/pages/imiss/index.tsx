@@ -12,6 +12,7 @@ import {
     AlertCircle,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     UploadCloud,
     Users,
     LayoutGrid,
@@ -46,7 +47,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import {
     Dialog,
@@ -58,6 +59,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
     Select,
     SelectContent,
@@ -155,9 +157,24 @@ type ImissRequestType = {
     is_active?: boolean;
 };
 
+type DirectoryEntryType = {
+    id: number;
+    department: string;
+    local_no: string;
+    section: string;
+};
+
+type DepartmentType = {
+    id: number;
+    Code: string;
+    Department: string;
+};
+
 interface IMISSProps {
     tickets: TicketType[];
     requestTypes?: ImissRequestType[];
+    directoryEntries?: DirectoryEntryType[];
+    departments?: DepartmentType[];
 }
 
 const playNotificationSound = () => {
@@ -198,7 +215,7 @@ const playNotificationSound = () => {
     }
 };
 
-export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
+export default function IMISS({ tickets, requestTypes = [], directoryEntries = [], departments = [] }: IMISSProps) {
     const requestTypeLabels: Record<string, string> = {};
     requestTypes.forEach(rt => requestTypeLabels[rt.value] = rt.label);
 
@@ -213,10 +230,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
     const [isActiveTicketOpen, setIsActiveTicketOpen] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
-    const [commentsLoading, setCommentsLoading] = useState(false);
 
     const prevTicketsRef = useRef<TicketType[]>(tickets);
-    const justSentMessageRef = useRef<boolean>(false);
 
     const CLOSED_TICKET_STATUSES = ['Resolved', 'Cancelled'];
     const activeTicket = tickets.find(t => !CLOSED_TICKET_STATUSES.includes(t.status));
@@ -229,30 +244,6 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         setIsSubmitDialogOpen(true);
     };
 
-    const fetchComments = (ticketId: number) => {
-        setCommentsLoading(true);
-        fetch(`/imiss/tickets/${ticketId}/comments`)
-            .then(res => res.json())
-            .then(data => {
-                setSelectedTicket(prev => {
-                    if (prev && prev.id === ticketId) {
-                        return { ...prev, comments: data };
-                    }
-                    return prev;
-                });
-            })
-            .catch(err => console.error('Failed to load comments:', err))
-            .finally(() => setCommentsLoading(false));
-    };
-
-    // Fetch comments on-demand when a ticket panel is opened.
-    // Comments are no longer bundled in the page load to avoid slow LOB reads on every poll.
-    useEffect(() => {
-        if (!isDetailsOpen || !selectedTicket) return;
-        if (selectedTicket.comments) return; // already loaded, don't re-fetch
-
-        fetchComments(selectedTicket.id);
-    }, [isDetailsOpen, selectedTicket?.id]);
 
     useEffect(() => {
         if (isDetailsOpen && selectedTicket) {
@@ -344,119 +335,135 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         }
     }, []);
 
+    // Keep prevTicketsRef current, and sync the open ticket panel's non-comment fields
+    // (status, timestamps, etc.) whenever the tickets prop refreshes.
     useEffect(() => {
-        if (prevTicketsRef.current && prevTicketsRef.current !== tickets) {
-            tickets.forEach(newTicket => {
-                const oldTicket = prevTicketsRef.current.find(t => t.id === newTicket.id);
-                if (oldTicket) {
-                    if (oldTicket.status !== newTicket.status) {
-                        playNotificationSound();
-                        toast(`Ticket ${newTicket.ticket_number} Updated`, {
-                            id: `status-${newTicket.ticket_number}`,
-                            description: (
-                                <div
-                                    className="cursor-pointer group flex flex-col gap-1"
-                                    onClick={() => {
-                                        setSelectedTicket(newTicket);
-                                        setIsDetailsOpen(true);
-                                    }}
-                                >
-                                    <span>Status changed to {newTicket.status}.</span>
-                                    <span className="text-blue-500 font-semibold group-hover:underline">Click to view &rarr;</span>
-                                </div>
-                            ),
-                            icon: <AlertCircle className="h-6 w-6 text-blue-500 mr-5" />,
-                            duration: 99999999,
-                            closeButton: true,
-                        });
-                        router.post('/notifications', {
-                            title: 'Ticket Update',
-                            message: `Your ticket ${newTicket.ticket_number} is now: ${newTicket.status}`,
-                            link: '/imiss'
-                        }, {
-                            preserveScroll: true,
-                            preserveState: true,
-                            onSuccess: () => window.dispatchEvent(new CustomEvent('refresh-notifications'))
-                        });
-                    }
-                    // On polls, backend returns comments_count (not full comments) to avoid LOB I/O.
-                    const oldCommentsLength = oldTicket.comments_count ?? oldTicket.comments?.length ?? 0;
-                    const newCommentsLength = newTicket.comments_count ?? newTicket.comments?.length ?? 0;
-                    if (newCommentsLength > oldCommentsLength) {
-                        if (justSentMessageRef.current && newTicket.id === selectedTicket?.id) {
-                            // Message was sent by the current user themselves, so consume flag and skip notification
-                            justSentMessageRef.current = false;
-                        } else {
-                            playNotificationSound();
-                            toast(`New Message on ${newTicket.ticket_number}`, {
-                                id: `msg-${newTicket.ticket_number}`,
-                                description: (
-                                    <div
-                                        className="cursor-pointer group flex flex-col gap-1 mt-0.5"
-                                        onClick={() => {
-                                            setSelectedTicket(newTicket);
-                                            setIsDetailsOpen(true);
-                                        }}
-                                    >
-                                        <span>You have new message(s).</span>
-                                        <span className="text-blue-500 font-semibold group-hover:underline">Click to open chat &rarr;</span>
-                                    </div>
-                                ),
-                                icon: <MessageSquare className="h-6 w-6 text-blue-500 mr-5" />,
-                                duration: 99999999,
-                                closeButton: true,
-                            });
-
-                            router.post('/notifications', {
-                                title: 'New Message',
-                                message: `You have a new comment on ticket ${newTicket.ticket_number}`,
-                                link: `/imiss?ticket=${newTicket.ticket_number}`
-                            }, {
-                                preserveScroll: true,
-                                preserveState: true,
-                                onSuccess: () => window.dispatchEvent(new CustomEvent('refresh-notifications'))
-                            });
-                        }
-                    }
-                }
-            });
-        }
         prevTicketsRef.current = tickets;
 
-        if (selectedTicket) {
-            const updated = tickets.find(t => t.id === selectedTicket.id);
-            if (updated) {
-                const oldCommentsLength = selectedTicket.comments?.length ?? selectedTicket.comments_count ?? 0;
-                const newCommentsLength = updated.comments_count ?? updated.comments?.length ?? 0;
-
-                if (newCommentsLength > oldCommentsLength) {
-                    // Fetch fresh comments when a new message is received in the background
-                    fetchComments(selectedTicket.id);
-                } else {
-                    // If the poll didn't return full comments (only comments_count),
-                    // preserve the existing comments in state so the chat window doesn't lose messages.
-                    if (!updated.comments && selectedTicket.comments) {
-                        (updated as any).comments = selectedTicket.comments;
-                    }
-                    setSelectedTicket(updated);
-                }
+        // Use the functional updater so this always reads the latest selectedTicket rather
+        // than whatever value was captured in this effect's closure — reading a stale
+        // `selectedTicket` here previously let an in-flight comments array get clobbered by
+        // an older snapshot when multiple ticket-prop refreshes overlapped.
+        setSelectedTicket(prev => {
+            if (!prev) return prev;
+            const updated = tickets.find(t => t.id === prev.id);
+            if (!updated) return prev;
+            // Preserve already-loaded comments since index() doesn't eager-load them.
+            if (!updated.comments && prev.comments) {
+                return { ...updated, comments: prev.comments };
             }
-        }
+            return updated;
+        });
     }, [tickets]);
 
-    // Poll for ticket updates so the UI reflects admin changes (like marking as Accomplished)
+    // Real-time: ticket status changes, new comments (list-level), and notifications for this user.
     useEffect(() => {
-        const poll = () => {
-            router.reload({
-                only: ['tickets'],
-                preserveScroll: true,
-                preserveState: true,
-            } as any);
+        const bioId = user?.bioid;
+        if (!bioId || !window.Echo) return;
+
+        const channel = window.Echo.private(`imiss.user.${bioId}`);
+
+        const handleStatusUpdated = (e: any) => {
+            playNotificationSound();
+            toast(`Ticket ${e.ticket_number} Updated`, {
+                id: `status-${e.ticket_number}`,
+                description: (
+                    <div
+                        className="cursor-pointer group flex flex-col gap-1"
+                        onClick={() => {
+                            const currentTicket = prevTicketsRef.current.find(t => t.ticket_number === e.ticket_number);
+                            if (currentTicket) {
+                                setSelectedTicket(currentTicket);
+                                setIsDetailsOpen(true);
+                            }
+                        }}
+                    >
+                        <span>Status changed to {e.status}.</span>
+                        <span className="text-blue-500 font-semibold group-hover:underline">Click to view &rarr;</span>
+                    </div>
+                ),
+                icon: <AlertCircle className="h-6 w-6 text-blue-500 mr-5" />,
+                duration: 99999999,
+                closeButton: true,
+            });
+            router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true } as any);
         };
 
-        const interval = setInterval(poll, 15000); // Poll every 15 seconds
-        return () => clearInterval(interval);
-    }, []);
+        const handleCommentPosted = (e: any) => {
+            playNotificationSound();
+            toast(`New Message on ${e.ticket_number}`, {
+                id: `msg-${e.ticket_number}`,
+                description: (
+                    <div
+                        className="cursor-pointer group flex flex-col gap-1 mt-0.5"
+                        onClick={() => {
+                            const currentTicket = prevTicketsRef.current.find(t => t.ticket_number === e.ticket_number);
+                            if (currentTicket) {
+                                setSelectedTicket(currentTicket);
+                                setIsDetailsOpen(true);
+                            }
+                        }}
+                    >
+                        <span>You have new message(s).</span>
+                        <span className="text-blue-500 font-semibold group-hover:underline">Click to open chat &rarr;</span>
+                    </div>
+                ),
+                icon: <MessageSquare className="h-6 w-6 text-blue-500 mr-5" />,
+                duration: 99999999,
+                closeButton: true,
+            });
+            router.reload({ only: ['tickets'], preserveScroll: true, preserveState: true } as any);
+        };
+
+        const handleNotificationCreated = () => {
+            window.dispatchEvent(new CustomEvent('refresh-notifications'));
+        };
+
+        channel
+            .listen('.ticket.status-updated', handleStatusUpdated)
+            .listen('.comment.posted', handleCommentPosted)
+            .listen('.notification.created', handleNotificationCreated);
+
+        return () => {
+            channel
+                .stopListening('.ticket.status-updated')
+                .stopListening('.comment.posted')
+                .stopListening('.notification.created');
+            window.Echo.leave(`imiss.user.${bioId}`);
+        };
+    }, [user?.bioid]);
+
+    // Real-time: append incoming chat messages directly while a ticket's panel is open.
+    useEffect(() => {
+        if (!isDetailsOpen || !selectedTicket || !window.Echo) return;
+
+        const ticketId = selectedTicket.id;
+        const channel = window.Echo.private(`imiss.ticket.${ticketId}`);
+
+        channel.listen('.comment.posted', (e: any) => {
+            setSelectedTicket(prev => {
+                if (!prev || prev.id !== ticketId) return prev;
+                const existingComments = prev.comments ?? [];
+                if (existingComments.some(c => c.id === e.id)) return prev; // already have it (e.g. from the tickets prop refresh)
+                return {
+                    ...prev,
+                    comments: [...existingComments, {
+                        id: e.id,
+                        message: e.message,
+                        sender_bioid: e.sender_bioid,
+                        sender_name: e.sender_name,
+                        created_at: e.created_at,
+                        attachments: e.attachments,
+                    }],
+                };
+            });
+        });
+
+        return () => {
+            channel.stopListening('.comment.posted');
+            window.Echo.leave(`imiss.ticket.${ticketId}`);
+        };
+    }, [isDetailsOpen, selectedTicket?.id]);
 
     const handleVisit = (e: React.MouseEvent, system: HospitalSystemType) => {
         e.preventDefault();
@@ -552,14 +559,48 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         attachments: [] as File[],
     });
 
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const hasScrolledOnOpenRef = useRef(false);
 
-    useEffect(() => {
-        if (isDetailsOpen) {
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-            }, 50);
+    // useLayoutEffect (not useEffect+setTimeout) so this runs synchronously after the DOM
+    // updates but before the browser paints — otherwise, every time `comments` gets a new
+    // array reference (tickets-sync/live-append), the scroll container can briefly show
+    // its reset-to-top position (i.e. the oldest message) before the delayed scroll catches up.
+    // Setting scrollTop directly (rather than scrollIntoView on a sentinel) avoids alignment
+    // ambiguity. The first scroll after opening the panel jumps instantly (with a
+    // requestAnimationFrame correction in case the dialog's slide-in animation hasn't finished
+    // laying out the container yet); any later update while it's still open scrolls smoothly,
+    // so a new message arriving doesn't just pop into view.
+    useLayoutEffect(() => {
+        if (!isDetailsOpen) {
+            hasScrolledOnOpenRef.current = false;
+            return;
         }
+
+        const isFirstScrollForThisOpen = !hasScrolledOnOpenRef.current;
+        hasScrolledOnOpenRef.current = true;
+
+        const scrollNow = (smooth: boolean) => {
+            const el = messagesContainerRef.current;
+            if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+        };
+
+        scrollNow(!isFirstScrollForThisOpen);
+
+        if (!isFirstScrollForThisOpen) return;
+
+        // The dialog portals its content, so the container may not be mounted/laid out yet
+        // on this very first pass — retry across a couple of animation frames rather than
+        // bailing out if the ref isn't populated yet.
+        let raf2 = 0;
+        const raf1 = requestAnimationFrame(() => {
+            scrollNow(false);
+            raf2 = requestAnimationFrame(() => scrollNow(false));
+        });
+        return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
+        };
     }, [selectedTicket?.comments, isDetailsOpen]);
 
     const { data, setData, post, processing, reset, errors } = useForm({
@@ -572,10 +613,61 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         attachments: [] as File[],
     });
 
+    const [isLocalNumberOpen, setIsLocalNumberOpen] = useState(false);
+    const localNumberBoxRef = useRef<HTMLDivElement>(null);
+    const filteredDirectoryEntries = useMemo(() => {
+        const query = data.local_number.trim().toLowerCase();
+        if (!query) return directoryEntries;
+        return directoryEntries.filter(entry =>
+            entry.local_no.toLowerCase().includes(query) ||
+            entry.department.toLowerCase().includes(query)
+        );
+    }, [data.local_number, directoryEntries]);
+
+    useEffect(() => {
+        if (!isLocalNumberOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (localNumberBoxRef.current && !localNumberBoxRef.current.contains(e.target as Node)) {
+                setIsLocalNumberOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isLocalNumberOpen]);
+
+    const [isLocationOpen, setIsLocationOpen] = useState(false);
+    const locationBoxRef = useRef<HTMLDivElement>(null);
+    const filteredDepartments = useMemo(() => {
+        const query = data.location.trim().toLowerCase();
+        if (!query) return departments;
+        return departments.filter(dept =>
+            dept.Department.toLowerCase().includes(query) ||
+            dept.Code.toLowerCase().includes(query)
+        );
+    }, [data.location, departments]);
+
+    useEffect(() => {
+        if (!isLocationOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (locationBoxRef.current && !locationBoxRef.current.contains(e.target as Node)) {
+                setIsLocationOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isLocationOpen]);
+
     const isFormInvalid = !data.request_type.trim() ||
         !data.description.trim() ||
         !data.local_number.trim() ||
         !data.location.trim();
+
+    const missingFields = [
+        !data.request_type.trim() && 'Request Type',
+        !data.local_number.trim() && 'Local Number',
+        !data.location.trim() && 'Location / Ward',
+        !data.description.trim() && 'Problem Encountered',
+    ].filter(Boolean) as string[];
 
     const handleSubmitTicket = () => {
         post('/imiss/tickets', {
@@ -584,6 +676,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
             onSuccess: () => {
                 setIsSubmitDialogOpen(false);
                 setActiveTicketIndex(0);
+                setIsLocalNumberOpen(false);
+                setIsLocationOpen(false);
                 reset();
                 toast.success('Job order request submitted successfully!');
             },
@@ -604,15 +698,15 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         if (inputElement) inputElement.focus();
 
         const ticketId = selectedTicket.id;
-        justSentMessageRef.current = true; // Flag that this message was sent by the current user
+        const socketId = window.Echo?.socketId();
 
         commentForm.post(`/imiss/tickets/${ticketId}/comments`, {
             preserveScroll: true,
             preserveState: true,
             forceFormData: true,
+            headers: socketId ? { 'X-Socket-Id': socketId } : {},
             onSuccess: () => {
                 commentForm.reset();
-                fetchComments(ticketId);
             }
         });
     };
@@ -1122,14 +1216,58 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                 <label className="text-sm font-semibold text-foreground">
                                     Local Number <span className="text-destructive">*</span>
                                 </label>
-                                <div className="relative w-full">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
+                                <div className="relative w-full" ref={localNumberBoxRef}>
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60 z-10" />
                                     <Input
-                                        placeholder="e.g., 1115"
-                                        className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
+                                        placeholder="Select a local number"
+                                        autoComplete="off"
+                                        className="w-full rounded-xl pl-9 pr-8 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.local_number}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('local_number', e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                            setData('local_number', e.target.value);
+                                            setIsLocalNumberOpen(true);
+                                        }}
+                                        onFocus={() => setIsLocalNumberOpen(true)}
                                     />
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                        onClick={() => setIsLocalNumberOpen(prev => !prev)}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#1E293B]/50 hover:text-[#1E293B] cursor-pointer"
+                                    >
+                                        <ChevronDown className="h-4 w-4" />
+                                    </button>
+
+                                    {isLocalNumberOpen && (
+                                        <div className="absolute z-50 mt-1 w-full max-h-[240px] overflow-y-auto rounded-xl border bg-white shadow-md py-1">
+                                            {filteredDirectoryEntries.length > 0 ? (
+                                                filteredDirectoryEntries.map(entry => (
+                                                    <button
+                                                        type="button"
+                                                        key={entry.id}
+                                                        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                                        onClick={() => {
+                                                            setData('local_number', entry.local_no);
+                                                            setIsLocalNumberOpen(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/60 cursor-pointer"
+                                                    >
+                                                        <Phone className="h-3.5 w-3.5 shrink-0 text-[#1E293B]/60" />
+                                                        <span className="font-semibold text-[#1E293B]">{entry.local_no}</span>
+                                                        <span className="text-muted-foreground truncate">
+                                                            {entry.department}
+                                                            {entry.section === 'BUCAS' && ' (BUCAS)'}
+                                                        </span>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                                    No matching local number found.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 {errors.local_number && <span className="text-xs text-destructive">{errors.local_number}</span>}
                             </div>
@@ -1154,14 +1292,54 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             <label className="text-sm font-semibold text-foreground">
                                 Location / Ward <span className="text-destructive">*</span>
                             </label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
+                            <div className="relative" ref={locationBoxRef}>
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60 z-10" />
                                 <Input
-                                    placeholder="e.g., Pharmacy Dept, Ward 3"
-                                    className="rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
+                                    placeholder="Select a department or ward"
+                                    autoComplete="off"
+                                    className="rounded-xl pl-9 pr-8 bg-white focus-visible:ring-[#1E293B]/30"
                                     value={data.location}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('location', e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        setData('location', e.target.value);
+                                        setIsLocationOpen(true);
+                                    }}
+                                    onFocus={() => setIsLocationOpen(true)}
                                 />
+                                <button
+                                    type="button"
+                                    tabIndex={-1}
+                                    onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                    onClick={() => setIsLocationOpen(prev => !prev)}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#1E293B]/50 hover:text-[#1E293B] cursor-pointer"
+                                >
+                                    <ChevronDown className="h-4 w-4" />
+                                </button>
+
+                                {isLocationOpen && (
+                                    <div className="absolute z-50 mt-1 w-full max-h-[240px] overflow-y-auto rounded-xl border bg-white shadow-md py-1">
+                                        {filteredDepartments.length > 0 ? (
+                                            filteredDepartments.map(dept => (
+                                                <button
+                                                    type="button"
+                                                    key={dept.id}
+                                                    onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                                    onClick={() => {
+                                                        setData('location', dept.Department);
+                                                        setIsLocationOpen(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/60 cursor-pointer"
+                                                >
+                                                    <MapPin className="h-3.5 w-3.5 shrink-0 text-[#1E293B]/60" />
+                                                    <span className="text-foreground truncate">{dept.Department}</span>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                                No matching department found.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {errors.location && <span className="text-xs text-destructive">{errors.location}</span>}
                         </div>
@@ -1256,23 +1434,39 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                     <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-end shrink-0">
                         <Button
                             variant="ghost"
-                            onClick={() => { setIsSubmitDialogOpen(false); reset(); }}
+                            onClick={() => { setIsSubmitDialogOpen(false); setIsLocalNumberOpen(false); setIsLocationOpen(false); reset(); }}
                             className="rounded-xl font-semibold cursor-pointer"
                         >
                             Cancel
                         </Button>
-                        <Button
-                            onClick={() => setIsConfirmSubmitOpen(true)}
-                            disabled={processing || isFormInvalid}
-                            className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <span>Submit Request</span>
-                            {processing ? (
-                                <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
-                            ) : (
-                                <Send className="h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className={isFormInvalid ? 'inline-flex' : 'contents'}>
+                                    <Button
+                                        onClick={() => setIsConfirmSubmitOpen(true)}
+                                        disabled={processing || isFormInvalid}
+                                        className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <span>Submit Request</span>
+                                        {processing ? (
+                                            <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                                        )}
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            {isFormInvalid && (
+                                <TooltipContent side="top" align="end" alignOffset={-4} collisionPadding={16}>
+                                    <p className="font-semibold mb-0.5">Please complete the following:</p>
+                                    <ul className="list-disc list-inside">
+                                        {missingFields.map((field) => (
+                                            <li key={field}>{field}</li>
+                                        ))}
+                                    </ul>
+                                </TooltipContent>
                             )}
-                        </Button>
+                        </Tooltip>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1420,13 +1614,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             <MessageSquare className="h-3.5 w-3.5 text-[#1E293B]" />
                             Comments & Updates
                         </div>
-                        <div className="max-h-48 overflow-y-auto p-4 flex flex-col gap-3 emr-scrollbar bg-card">
-                            {commentsLoading ? (
-                                <div className="flex items-center justify-center py-4 gap-2 text-muted-foreground text-xs">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Loading messages...
-                                </div>
-                            ) : selectedTicket?.comments && selectedTicket.comments.length > 0 ? (
+                        <div ref={messagesContainerRef} className="max-h-48 overflow-y-auto p-4 flex flex-col gap-3 emr-scrollbar bg-card">
+                            {selectedTicket?.comments && selectedTicket.comments.length > 0 ? (
                                 selectedTicket.comments.map(comment => (
                                     <div key={comment.id} className={`flex flex-col ${comment.sender_bioid === (usePage<any>().props.auth?.user?.bio_id || usePage<any>().props.auth?.user?.id) ? 'items-end' : 'items-start'}`}>
                                         <div className={`text-[10px] text-muted-foreground mb-1 px-1`}>
@@ -1471,7 +1660,6 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             ) : (
                                 <div className="text-center text-muted-foreground text-xs py-4">No comments yet.</div>
                             )}
-                            <div ref={messagesEndRef} />
                         </div>
                         {selectedTicket?.status !== 'Resolved' && selectedTicket?.status !== 'Cancelled' && (
                             <div className="p-3 bg-muted/10 border-t flex flex-col gap-2 shrink-0">
