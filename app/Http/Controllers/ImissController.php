@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
+use App\Models\DirectoryEntry;
 use App\Models\HospitalSystem;
 use App\Models\ImissTicket;
 use Illuminate\Http\Request;
@@ -19,11 +21,10 @@ class ImissController extends Controller
         // Assuming Auth::user() has a bio_id property, otherwise fallback to id
         $bioId = (string) (Auth::user()->bio_id ?? Auth::id());
 
-        // Never load full comments on page load or polls — comments are loaded on-demand
-        // via GET /imiss/tickets/{id}/comments when the user opens a ticket panel.
-        // This eliminates the most expensive query (nvarchar(max) LOB reads) from all
-        // concurrent page loads and 60-second polls.
-        $tickets = ImissTicket::withCount('comments')
+        // Comments are eager-loaded (mirroring admin()) now that updates are pushed via
+        // WebSocket events instead of interval polling — a single user's own tickets is a
+        // much smaller set than admin() already loads for every ticket, so this is safe.
+        $tickets = ImissTicket::with('comments')
             ->where('bio_id', $bioId)
             ->get()
             ->sortByDesc('created_at')
@@ -49,9 +50,28 @@ class ImissController extends Controller
             ];
         }
 
+        // Shares the "directory_entries_all" cache key with DirectoryController so a
+        // directory edit (which forgets that key) invalidates this list too.
+        $directoryEntries = collect(Cache::remember('directory_entries_all', 3600, function () {
+            return DirectoryEntry::get()
+                ->sortBy([
+                    ['section', 'asc'],
+                    ['sort_order', 'asc'],
+                    ['department', 'asc'],
+                ])
+                ->values()
+                ->toArray();
+        }))->where('is_active', true)->values()->all();
+
+        $departments = Cache::remember('departments_all', 3600, function () {
+            return Department::orderBy('Department')->get(['id', 'Code', 'Department'])->toArray();
+        });
+
         return Inertia::render('imiss/index', [
             'tickets' => $tickets,
             'requestTypes' => $requestTypes,
+            'directoryEntries' => $directoryEntries,
+            'departments' => $departments,
         ]);
     }
 
@@ -259,12 +279,24 @@ class ImissController extends Controller
         $ticket->save();
 
         if ($oldStatus !== $ticket->status) {
-            \App\Models\UserNotification::create([
+            $notification = \App\Models\UserNotification::create([
                 'bioid' => $ticket->bio_id,
                 'title' => 'Ticket Update',
                 'message' => "Your ticket {$ticket->ticket_number} is now: {$ticket->status}",
                 'link' => '/imiss',
             ]);
+            
+            try {
+                broadcast(new \App\Events\Imiss\TicketStatusUpdated($ticket, $oldStatus));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('IMISS TicketStatusUpdated broadcast failed: ' . $e->getMessage());
+            }
+
+            try {
+                broadcast(new \App\Events\Imiss\NotificationCreated($notification));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('IMISS NotificationCreated broadcast failed: ' . $e->getMessage());
+            }
         }
 
         return back();
@@ -343,7 +375,7 @@ class ImissController extends Controller
         $bioId = $user->bio_id ?? Auth::id();
         $name = $user->name ?? ($user->firstname . ' ' . $user->lastname ?? 'User');
 
-        \App\Models\ImissTicketComment::create([
+        $comment = \App\Models\ImissTicketComment::create([
             'ticket_id' => $ticket->id,
             'sender_bioid' => $bioId,
             'sender_name' => $name,
@@ -358,7 +390,7 @@ class ImissController extends Controller
         if ($ticket->bio_id != $bioId) {
             \App\Models\UserNotification::create([
                 'bioid' => $ticket->bio_id,
-                'title' => 'New Comment',
+                'title' => 'New Message',
                 'message' => "You have a new comment on ticket {$ticket->ticket_number}",
                 'link' => '/imiss',
             ]);

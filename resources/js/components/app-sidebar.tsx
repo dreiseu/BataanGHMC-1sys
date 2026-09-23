@@ -103,6 +103,7 @@ const mainNavItems: NavItem[] = [
         icon: Settings,
         items: [
             { title: 'Directories', href: '/utilities/directories' },
+            { title: 'Departments', href: '/utilities/departments' },
             { title: 'Events', href: '/utilities/events' },
             { title: 'HR Documents', href: '/utilities/hr-documents' },
             { title: 'IMISS Request Types', href: '/utilities/imiss-request-types' },

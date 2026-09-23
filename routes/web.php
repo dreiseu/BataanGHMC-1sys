@@ -8,6 +8,7 @@ use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\ImissController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\ImissRequestTypeController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\UserAccessController;
 use App\Http\Controllers\AuditLogController;
 
@@ -55,6 +56,7 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
             'hospitalSystems' => $hospitalSystems,
             'globalAnnouncements' => $globalAnnouncements,
             'events' => $events,
+            'showAddsNotice' => (bool) session()->pull('show_adds_notice', false),
         ]);
     })->name('dashboard');
 
@@ -205,6 +207,11 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
         Route::post('/utilities/imiss-request-types', [ImissRequestTypeController::class, 'store']);
         Route::put('/utilities/imiss-request-types/{imissRequestType}', [ImissRequestTypeController::class, 'update']);
         Route::delete('/utilities/imiss-request-types/{imissRequestType}', [ImissRequestTypeController::class, 'destroy']);
+
+        Route::get('/utilities/departments', [DepartmentController::class, 'index']);
+        Route::post('/utilities/departments', [DepartmentController::class, 'store']);
+        Route::put('/utilities/departments/{department}', [DepartmentController::class, 'update']);
+        Route::delete('/utilities/departments/{department}', [DepartmentController::class, 'destroy']);
 
         Route::get('/utilities/video-orientations', [\App\Http\Controllers\VideoOrientationController::class, 'index']);
         Route::post('/utilities/video-orientations/reorder', [\App\Http\Controllers\VideoOrientationController::class, 'reorder'])->name('video-orientations.reorder');

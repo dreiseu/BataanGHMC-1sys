@@ -12,6 +12,7 @@ import {
     AlertCircle,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     UploadCloud,
     Users,
     LayoutGrid,
@@ -46,7 +47,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import {
     Dialog,
@@ -58,6 +59,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
     Select,
     SelectContent,
@@ -155,9 +157,24 @@ type ImissRequestType = {
     is_active?: boolean;
 };
 
+type DirectoryEntryType = {
+    id: number;
+    department: string;
+    local_no: string;
+    section: string;
+};
+
+type DepartmentType = {
+    id: number;
+    Code: string;
+    Department: string;
+};
+
 interface IMISSProps {
     tickets: TicketType[];
     requestTypes?: ImissRequestType[];
+    directoryEntries?: DirectoryEntryType[];
+    departments?: DepartmentType[];
 }
 
 const playNotificationSound = () => {
@@ -198,7 +215,7 @@ const playNotificationSound = () => {
     }
 };
 
-export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
+export default function IMISS({ tickets, requestTypes = [], directoryEntries = [], departments = [] }: IMISSProps) {
     const requestTypeLabels: Record<string, string> = {};
     requestTypes.forEach(rt => requestTypeLabels[rt.value] = rt.label);
 
@@ -572,10 +589,61 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
         attachments: [] as File[],
     });
 
+    const [isLocalNumberOpen, setIsLocalNumberOpen] = useState(false);
+    const localNumberBoxRef = useRef<HTMLDivElement>(null);
+    const filteredDirectoryEntries = useMemo(() => {
+        const query = data.local_number.trim().toLowerCase();
+        if (!query) return directoryEntries;
+        return directoryEntries.filter(entry =>
+            entry.local_no.toLowerCase().includes(query) ||
+            entry.department.toLowerCase().includes(query)
+        );
+    }, [data.local_number, directoryEntries]);
+
+    useEffect(() => {
+        if (!isLocalNumberOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (localNumberBoxRef.current && !localNumberBoxRef.current.contains(e.target as Node)) {
+                setIsLocalNumberOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isLocalNumberOpen]);
+
+    const [isLocationOpen, setIsLocationOpen] = useState(false);
+    const locationBoxRef = useRef<HTMLDivElement>(null);
+    const filteredDepartments = useMemo(() => {
+        const query = data.location.trim().toLowerCase();
+        if (!query) return departments;
+        return departments.filter(dept =>
+            dept.Department.toLowerCase().includes(query) ||
+            dept.Code.toLowerCase().includes(query)
+        );
+    }, [data.location, departments]);
+
+    useEffect(() => {
+        if (!isLocationOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (locationBoxRef.current && !locationBoxRef.current.contains(e.target as Node)) {
+                setIsLocationOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isLocationOpen]);
+
     const isFormInvalid = !data.request_type.trim() ||
         !data.description.trim() ||
         !data.local_number.trim() ||
         !data.location.trim();
+
+    const missingFields = [
+        !data.request_type.trim() && 'Request Type',
+        !data.local_number.trim() && 'Local Number',
+        !data.location.trim() && 'Location / Ward',
+        !data.description.trim() && 'Problem Encountered',
+    ].filter(Boolean) as string[];
 
     const handleSubmitTicket = () => {
         post('/imiss/tickets', {
@@ -584,6 +652,8 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
             onSuccess: () => {
                 setIsSubmitDialogOpen(false);
                 setActiveTicketIndex(0);
+                setIsLocalNumberOpen(false);
+                setIsLocationOpen(false);
                 reset();
                 toast.success('Job order request submitted successfully!');
             },
@@ -1122,14 +1192,58 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                                 <label className="text-sm font-semibold text-foreground">
                                     Local Number <span className="text-destructive">*</span>
                                 </label>
-                                <div className="relative w-full">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
+                                <div className="relative w-full" ref={localNumberBoxRef}>
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60 z-10" />
                                     <Input
-                                        placeholder="e.g., 1115"
-                                        className="w-full rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
+                                        placeholder="Select a local number"
+                                        autoComplete="off"
+                                        className="w-full rounded-xl pl-9 pr-8 bg-white focus-visible:ring-[#1E293B]/30"
                                         value={data.local_number}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('local_number', e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                            setData('local_number', e.target.value);
+                                            setIsLocalNumberOpen(true);
+                                        }}
+                                        onFocus={() => setIsLocalNumberOpen(true)}
                                     />
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                        onClick={() => setIsLocalNumberOpen(prev => !prev)}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#1E293B]/50 hover:text-[#1E293B] cursor-pointer"
+                                    >
+                                        <ChevronDown className="h-4 w-4" />
+                                    </button>
+
+                                    {isLocalNumberOpen && (
+                                        <div className="absolute z-50 mt-1 w-full max-h-[240px] overflow-y-auto rounded-xl border bg-white shadow-md py-1">
+                                            {filteredDirectoryEntries.length > 0 ? (
+                                                filteredDirectoryEntries.map(entry => (
+                                                    <button
+                                                        type="button"
+                                                        key={entry.id}
+                                                        onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                                        onClick={() => {
+                                                            setData('local_number', entry.local_no);
+                                                            setIsLocalNumberOpen(false);
+                                                        }}
+                                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/60 cursor-pointer"
+                                                    >
+                                                        <Phone className="h-3.5 w-3.5 shrink-0 text-[#1E293B]/60" />
+                                                        <span className="font-semibold text-[#1E293B]">{entry.local_no}</span>
+                                                        <span className="text-muted-foreground truncate">
+                                                            {entry.department}
+                                                            {entry.section === 'BUCAS' && ' (BUCAS)'}
+                                                        </span>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                                    No matching local number found.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 {errors.local_number && <span className="text-xs text-destructive">{errors.local_number}</span>}
                             </div>
@@ -1154,14 +1268,54 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                             <label className="text-sm font-semibold text-foreground">
                                 Location / Ward <span className="text-destructive">*</span>
                             </label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60" />
+                            <div className="relative" ref={locationBoxRef}>
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1E293B]/60 z-10" />
                                 <Input
-                                    placeholder="e.g., Pharmacy Dept, Ward 3"
-                                    className="rounded-xl pl-9 bg-white focus-visible:ring-[#1E293B]/30"
+                                    placeholder="Select a department or ward"
+                                    autoComplete="off"
+                                    className="rounded-xl pl-9 pr-8 bg-white focus-visible:ring-[#1E293B]/30"
                                     value={data.location}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setData('location', e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        setData('location', e.target.value);
+                                        setIsLocationOpen(true);
+                                    }}
+                                    onFocus={() => setIsLocationOpen(true)}
                                 />
+                                <button
+                                    type="button"
+                                    tabIndex={-1}
+                                    onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                    onClick={() => setIsLocationOpen(prev => !prev)}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#1E293B]/50 hover:text-[#1E293B] cursor-pointer"
+                                >
+                                    <ChevronDown className="h-4 w-4" />
+                                </button>
+
+                                {isLocationOpen && (
+                                    <div className="absolute z-50 mt-1 w-full max-h-[240px] overflow-y-auto rounded-xl border bg-white shadow-md py-1">
+                                        {filteredDepartments.length > 0 ? (
+                                            filteredDepartments.map(dept => (
+                                                <button
+                                                    type="button"
+                                                    key={dept.id}
+                                                    onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
+                                                    onClick={() => {
+                                                        setData('location', dept.Department);
+                                                        setIsLocationOpen(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/60 cursor-pointer"
+                                                >
+                                                    <MapPin className="h-3.5 w-3.5 shrink-0 text-[#1E293B]/60" />
+                                                    <span className="text-foreground truncate">{dept.Department}</span>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                                No matching department found.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {errors.location && <span className="text-xs text-destructive">{errors.location}</span>}
                         </div>
@@ -1256,23 +1410,39 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                     <DialogFooter className="px-6 py-4 bg-muted/30 border-t sm:justify-end shrink-0">
                         <Button
                             variant="ghost"
-                            onClick={() => { setIsSubmitDialogOpen(false); reset(); }}
+                            onClick={() => { setIsSubmitDialogOpen(false); setIsLocalNumberOpen(false); setIsLocationOpen(false); reset(); }}
                             className="rounded-xl font-semibold cursor-pointer"
                         >
                             Cancel
                         </Button>
-                        <Button
-                            onClick={() => setIsConfirmSubmitOpen(true)}
-                            disabled={processing || isFormInvalid}
-                            className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <span>Submit Request</span>
-                            {processing ? (
-                                <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
-                            ) : (
-                                <Send className="h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className={isFormInvalid ? 'inline-flex' : 'contents'}>
+                                    <Button
+                                        onClick={() => setIsConfirmSubmitOpen(true)}
+                                        disabled={processing || isFormInvalid}
+                                        className="rounded-xl bg-[#1E293B] hover:bg-[#00D4FF] text-white font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-2 group disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <span>Submit Request</span>
+                                        {processing ? (
+                                            <div className="h-4 w-4 rounded-full border-2 border-white/80 border-t-transparent animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                                        )}
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            {isFormInvalid && (
+                                <TooltipContent side="top" align="end" alignOffset={-4} collisionPadding={16}>
+                                    <p className="font-semibold mb-0.5">Please complete the following:</p>
+                                    <ul className="list-disc list-inside">
+                                        {missingFields.map((field) => (
+                                            <li key={field}>{field}</li>
+                                        ))}
+                                    </ul>
+                                </TooltipContent>
                             )}
-                        </Button>
+                        </Tooltip>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1726,7 +1896,15 @@ export default function IMISS({ tickets, requestTypes = [] }: IMISSProps) {
                     </div>
 
                     <AlertDialogFooter className="mt-2 sm:justify-center flex-col sm:flex-row gap-3">
-                        <AlertDialogCancel className="mt-0 rounded-xl font-semibold sm:w-full">
+                        <AlertDialogCancel
+                            className="mt-0 rounded-xl font-semibold sm:w-full"
+                            onClick={() => {
+                                if (ticketToResolve) {
+                                    setSelectedTicket(ticketToResolve);
+                                    setIsDetailsOpen(true);
+                                }
+                            }}
+                        >
                             Wait, not yet
                         </AlertDialogCancel>
                         <AlertDialogAction

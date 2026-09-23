@@ -38,6 +38,8 @@ class FortifyServiceProvider extends ServiceProvider
                 return new class implements \Laravel\Fortify\Contracts\LoginResponse {
                     public function toResponse($request)
                     {
+                        $request->session()->put('show_adds_notice', true);
+                        
                         return redirect()->intended('/dashboard');
                     }
                 };

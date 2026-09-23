@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -41,6 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { useState, useMemo, useEffect } from 'react';
 import { CalendarWidget } from '@/components/calendar-widget';
+import addsNoticeUrl from '../../images/announcement.jpg';
 
 const SERVICES = [
     {
@@ -87,6 +89,16 @@ const SERVICES = [
     },
 ];
 
+const getAddsNoticeDismissedKey = (bioid: string) => `adds_notice_dismissed_date_${bioid}`;
+
+const getTodayDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const CYBER_TIPS = [
     { title: 'Password Security', text: 'Never share your 1BGHMC password with anyone, not even IMISS staff.' },
     { title: 'Phishing Alert', text: 'Do not click on suspicious email links asking for your login credentials.' },
@@ -94,8 +106,9 @@ const CYBER_TIPS = [
 ];
 
 export default function Dashboard() {
-    const { auth, pinnedModules: initialPinnedModules, hospitalSystems, globalAnnouncements, events } = usePage<any>().props;
+    const { auth, pinnedModules: initialPinnedModules, hospitalSystems, globalAnnouncements, events, showAddsNotice } = usePage<any>().props;
     const userName = auth?.user?.name ? auth.user.name.split(' ')[0] : 'User';
+    const userBioId = auth?.user?.bioid;
 
     const ALL_MODULES = useMemo(() => {
         const iconList = [Cpu, FolderGit2, Building2, LayoutGrid, Contact];
@@ -155,12 +168,18 @@ export default function Dashboard() {
     const savedPins = (Array.isArray(initialPinnedModules) ? initialPinnedModules : [])
         .filter(href => ALL_MODULES.some(m => m.href === href));
     const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+    const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+    const [dontShowNoticeToday, setDontShowNoticeToday] = useState(false);
     const [recentModulesHrefs, setRecentModulesHrefs] = useState<string[]>([]);
     const [activeTip, setActiveTip] = useState(0);
 
     useEffect(() => {
         const saved = JSON.parse(localStorage.getItem('recent_modules') || '[]');
         setRecentModulesHrefs(saved);
+
+        if (showAddsNotice && (!userBioId || localStorage.getItem(getAddsNoticeDismissedKey(userBioId)) !== getTodayDateString())) {
+            setIsNoticeModalOpen(true);
+        }
 
         const interval = setInterval(() => {
             setActiveTip((prev) => (prev + 1) % CYBER_TIPS.length);
@@ -190,6 +209,13 @@ export default function Dashboard() {
     const openPinModal = () => {
         setData('pinned_modules', savedPins);
         setIsPinModalOpen(true);
+    };
+
+    const handleCloseNoticeModal = () => {
+        if (dontShowNoticeToday && userBioId) {
+            localStorage.setItem(getAddsNoticeDismissedKey(userBioId), getTodayDateString());
+        }
+        setIsNoticeModalOpen(false);
     };
 
     const saveRecentModule = (href: string) => {
@@ -514,6 +540,44 @@ export default function Dashboard() {
                             {processing ? 'Saving...' : 'Save Pins'}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ADDS Mandatory Password Change Notice */}
+            <Dialog open={isNoticeModalOpen} onOpenChange={(open) => (open ? setIsNoticeModalOpen(true) : handleCloseNoticeModal())}>
+                <DialogContent
+                    className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden gap-0 border-0 [&>button]:text-white [&>button]:opacity-90 [&>button]:hover:text-[#00D4FF] [&>button]:hover:opacity-100"
+                    style={{ backgroundColor: '#1E293B' }}
+                >
+                    <DialogHeader className="p-4" style={{ backgroundColor: '#1E293B' }}>
+                        <DialogTitle className="text-base text-white">System Announcement</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Notice regarding the mandatory Active Directory password expiration policy every six months.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto emr-scrollbar" style={{ backgroundColor: '#1E293B' }}>
+                        <img
+                            src={addsNoticeUrl}
+                            alt="ADDS Mandatory Password Change Notice"
+                            className="w-full h-auto block"
+                        />
+                    </div>
+                    <div className="p-4 flex items-center justify-between gap-3" style={{ backgroundColor: '#1E293B' }}>
+                        <label className="flex items-center gap-2 text-sm text-white/80 cursor-pointer select-none">
+                            <Checkbox
+                                checked={dontShowNoticeToday}
+                                onCheckedChange={(checked) => setDontShowNoticeToday(checked === true)}
+                                className="border-white/30 data-[state=checked]:bg-[#00D4FF] data-[state=checked]:border-[#00D4FF] data-[state=checked]:text-[#0F172A]"
+                            />
+                            Don't show again today
+                        </label>
+                        <Button
+                            className="cursor-pointer bg-[#00D4FF] hover:bg-[#00D4FF]/90 text-[#0F172A] font-bold shrink-0"
+                            onClick={handleCloseNoticeModal}
+                        >
+                            I Understand
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </>
